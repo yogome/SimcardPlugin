@@ -1,0 +1,59 @@
+settings = {	
+	build = {
+        neverStripDebugInfo = true
+    },
+	
+	orientation = {
+		default = "landscapeRight",
+		content = "landscapeRight",
+		supported = { "landscapeRight", "landscapeLeft"},
+	},
+	
+	iphone = {
+		plist = {
+			CFBundleShortVersionString = "1.0",
+			UIStatusBarHidden = true,
+			UIPrerenderedIcon = true,
+			CFBundleDisplayName = "YappKids",
+			CFBundleIconFiles = {
+				"Icon.png",
+				"Icon@2x.png",
+				"Icon-60.png",
+				"Icon-60@2x.png",
+				"Icon-72.png",
+				"Icon-72@2x.png",
+				"Icon-76.png",
+				"Icon-76@2x.png",
+			},
+			UIAppFonts = {
+				"VAGRounded.ttf"
+			},
+			UIApplicationExitsOnSuspend = false,
+			CFBundleURLTypes = {
+				{
+					CFBundleURLSchemes = {
+						"YappKids",
+					}
+				}
+			}
+		}
+	},
+
+	android = {
+		largeHeap = true,
+		versionCode = "1",
+		permissions = {
+			{ name = ".permission.C2D_MESSAGE", protectionLevel = "signature" },
+		},
+		usesPermissions = {
+			"android.permission.INTERNET",
+			"com.android.vending.CHECK_LICENSE",
+			"android.permission.WRITE_EXTERNAL_STORAGE",
+			"android.permission.GET_ACCOUNTS",
+			"android.permission.RECEIVE_BOOT_COMPLETED",
+			"com.google.android.c2dm.permission.RECEIVE",
+			".permission.C2D_MESSAGE",
+			"android.permission.READ\_PHONE\_STATE",
+		},
+	},
+}

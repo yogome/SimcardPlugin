@@ -1,0 +1,22 @@
+{
+	"upgradeMinigames":"Upgrade",
+	"freeTrialManager":"Free trial",
+	"creditsRemainingManager":"Credits remaining",
+	
+	"winResultsManager":"Good job Yogotar! Now you are ready to fight against the Evil Queen Ignorantia",
+	"loseResultsManager":"You need to try again to be able to fight Queen Ignorantia's forces",
+	
+	"winResultsManager":"Good job Yogotar! Now you are ready to fight against the Evil Queen Ignorantia",
+	"theCorrectAnswerIs":"The correct answer was",
+	"chooseSubject":"Choose a subject",
+	"subjectMinigames":"%s educational games",
+	
+	"math":"Math",
+	"science":"Science",
+	"sustainability":"Sustainability",
+	"health":"Health",
+	"programming":"Programming",
+	"creativity":"Creativity",
+	"geography":"Geography",
+	"languages":"Languages"
+}

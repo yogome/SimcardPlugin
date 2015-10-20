@@ -1,0 +1,22 @@
+{
+	"upgradeMinigames":"Upgrade",
+	"freeTrialManager":"Teste grátis",
+	"creditsRemainingManager":"Créditos restantes",
+	
+	"winResultsManager":"Bom trabalho, Yogotar! Você está pronto para lutar com a Malvada Rainha Ignorantia",
+	"loseResultsManager":"Você deve tentar novamente para conseguir enfrentar o poder da Rainha Ignorantia",
+	
+	"winResultsManager":"Bom trabalho, Yogotar! Agora você está pronto para lutar com a Malvada Rainha Ignorantia",
+	"theCorrectAnswerIs":"A resposta certa era",
+	"chooseSubject":"Escolha um assunto",
+	"subjectMinigames":"%s jogos educativos",
+	
+	"math":"Matemática",
+	"science":"Ciência",
+	"sustainability":"Sustentabilidade",
+	"health":"Saúde",
+	"programming":"Programação",
+	"creativity":"Criatividade",
+	"geography":"Geografia",
+	"languages":"Idiomas"
+}

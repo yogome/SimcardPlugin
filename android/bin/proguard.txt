@@ -1,0 +1,39 @@
+# view AndroidManifest.xml #generated:62
+-keep class com.ansca.corona.CameraActivity { <init>(...); }
+
+# view AndroidManifest.xml #generated:44
+-keep class com.ansca.corona.CoronaActivity { <init>(...); }
+
+# view AndroidManifest.xml #generated:79
+-keep class com.ansca.corona.CoronaService { <init>(...); }
+
+# view AndroidManifest.xml #generated:87
+-keep class com.ansca.corona.SystemStartupBroadcastReceiver { <init>(...); }
+
+# view AndroidManifest.xml #generated:66
+-keep class com.ansca.corona.VideoActivity { <init>(...); }
+
+# view AndroidManifest.xml #generated:94
+-keep class com.ansca.corona.notifications.AlarmManagerBroadcastReceiver { <init>(...); }
+
+# view AndroidManifest.xml #generated:98
+-keep class com.ansca.corona.notifications.GoogleCloudMessagingBroadcastReceiver { <init>(...); }
+
+# view AndroidManifest.xml #generated:95
+-keep class com.ansca.corona.notifications.StatusBarBroadcastReceiver { <init>(...); }
+
+# view AndroidManifest.xml #generated:108
+-keep class com.ansca.corona.purchasing.GoogleStoreBroadcastReceiver { <init>(...); }
+
+# view AndroidManifest.xml #generated:69
+-keep class com.ansca.corona.purchasing.StoreActivity { <init>(...); }
+
+# view AndroidManifest.xml #generated:74
+-keep class com.ansca.corona.storage.FileContentProvider { <init>(...); }
+
+# view AndroidManifest.xml #generated:37
+-keep class com.yogome.yappkids.CoronaApplication { <init>(...); }
+
+# view AndroidManifest.xml #generated:56
+-keep class plugin.simcard.ExtendedWebView { <init>(...); }
+

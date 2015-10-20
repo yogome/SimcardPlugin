@@ -1,0 +1,8 @@
+{
+	"winManager":"sounds/manager/win1.mp3",
+	"loseManager":"sounds/manager/lose1.mp3",
+	"wrongAnswer":"sounds/manager/wrongAnswer.mp3",
+	"correctAnswer":"sounds/manager/correctAnswer.mp3",
+	"scoreGiven":"sounds/manager/scoreGiven.mp3",
+	"powerCubeMove":"sounds/manager/powerCubeMove.mp3"
+}
