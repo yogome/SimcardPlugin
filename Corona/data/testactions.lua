@@ -5,7 +5,6 @@ local players = require( "models.players" )
 local offlinequeue = require( "libs.helpers.offlinequeue" )
 local json = require( "json" )
 local settings = require( "settings" )
-local manager = require( "scenes.minigames.manager" )
 ----------------------------------------------- Functions
 local function goYogome()
 	director.gotoScene("scenes.intro.yogome")
