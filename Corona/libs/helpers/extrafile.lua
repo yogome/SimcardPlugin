@@ -1,9 +1,9 @@
------------------------------------------------ Extra file
+----------------------------------------------- Extra file - File management for iOS, Android, Windows and OSX - (c) Basilio Germán
 local path = ...
 local folder = path:match("(.-)[^%.]+$")
 local logger = require( folder.."logger" ) 
-local extrastring = require( folder.."extrastring" )
-local extratime = require( folder.."extratime" )
+local extrastring = require(folder.."extrastring")
+local extratime = require(folder.."extratime")
 local lfs = require( "lfs" )
 local json = require( "json" )
 
@@ -50,16 +50,12 @@ local function fileExists(fileName, directory)
 	if absolutePath then
 		local openFile = ioOpen(absolutePath, "r")
 		if openFile then
-			loggerLog([[[Extrafile] File "]]..tostring(fileName)..[[" was found]])
+			loggerLog([[File "]]..tostring(fileName)..[[" was found]])
 			openFile:close()
 			return true
-		else
-			loggerError([[[Extrafile] Attempt to open "]]..tostring(fileName)..[[" failed]])
-			return false
 		end
-	else
-		loggerError([[[Extrafile] Attempt to open "]]..tostring(fileName)..[[" failed]])
 	end
+	return false
 end
 
 local function getFiles(directoryName)
@@ -77,7 +73,7 @@ local function getFiles(directoryName)
 	end)
 	
 	if not success and message then
-		logger.error([[[Extrafile] directory "]]..tostring(directoryName)..[[" not found.]])
+		logger.error([[directory "]]..tostring(directoryName)..[[" not found.]])
 	end
 		
 	if #filenames == 0 then return false end
@@ -123,7 +119,7 @@ local function showGraphicGitVersion()
 			return not gitGroup.isVisible
 		end)
 	else
-		loggerError("[Extrafile] Git version was not available")
+		loggerError("Git version was not available")
 	end
 end
 ---------------------------------------------- Module functions
@@ -137,7 +133,7 @@ function extrafile.testPNGFiles()
 						local width, height = extrafile.getPNGDimensions(parentString..name)
 						
 						if (width > 1024 or height > 1024) or (width == 0 or height == 0) then
-							logger.error("[Extrafile] Excesive dimensions: "..(parentString..name).." "..width..","..height)
+							logger.error("Excesive dimensions: "..(parentString..name).." "..width..","..height)
 						end
 					end
 				elseif "table" == type(data) then
@@ -148,7 +144,7 @@ function extrafile.testPNGFiles()
 		
 		checkDirectory(cacheFilesystem)
 	else
-		loggerError("[Extrafile] Filesystem has to be cached")
+		loggerError("Filesystem has to be cached")
 	end
 end
 
@@ -171,7 +167,7 @@ function extrafile.getPNGDimensions(filename, baseDir)
 			local bytes = openFile:read(8)
 			local expect = "\137\080\078\071\013\010\026\010"
 			if bytes ~= expect then
-				loggerError("[Extrafile] "..tostring(filename).." is not a png")
+				loggerError(""..tostring(filename).." is not a png")
 				return unpack({0, 0})
 			end
 			
@@ -183,7 +179,7 @@ function extrafile.getPNGDimensions(filename, baseDir)
 
 				if chunkType == "IHDR" then
 					if dataLenght ~= 13 then -- 13 is the normal IHDR data lenght
-						loggerError("[Extrafile] "..tostring(filename).." has a format error")
+						loggerError(""..tostring(filename).." has a format error")
 					end
 					width = readUInt(openFile)
 					height = readUInt(openFile)
@@ -199,11 +195,11 @@ function extrafile.getPNGDimensions(filename, baseDir)
 			
 			openFile:close()
 			if not foundDimension then
-				logger.error("[Extrafile] Could not get "..tostring(filename).." dimnesions")
+				logger.error("Could not get "..tostring(filename).." dimnesions")
 			end
 			return unpack({width, height})
 		else
-			logger.error("[Extrafile] Could not open "..tostring(filename))
+			logger.error("Could not open "..tostring(filename))
 		end
 	end
 	return unpack({0, 0})
@@ -215,7 +211,7 @@ end
 
 function extrafile.exists(fileName, directory)
 	if fileName and "string" == type(fileName) then
-		if cacheFilesystem then
+		if cacheFilesystem and (directory == system.ResourceDirectory or directory == nil) then
 			local fileStrings = extrastring.split(fileName, "/")
 			local lastPathTable = cacheFilesystem
 			local existsInCache = false
@@ -230,19 +226,19 @@ function extrafile.exists(fileName, directory)
 			if existsInCache then
 				return true
 			else
-				loggerLog([[[Extrafile] File "]]..tostring(fileName)..[[" does not exist in cache]])
+				loggerLog([[File "]]..tostring(fileName)..[[" does not exist in cache]])
 				return fileExists(fileName, directory)
 			end
 		else
 			if not string.match(fileName, "%.lua") then
 				return fileExists(fileName, directory)
 			else
-				loggerError("[Extrafile] LUA files are not present in device builds, cache the filesystem first.")
+				loggerError("LUA files are not present in device builds, cache the filesystem first.")
 				return false
 			end
 		end
 	else
-		loggerError("[Extrafile] filename must be a string")
+		loggerError("filename must be a string")
 		return false
 	end
 end
@@ -322,8 +318,9 @@ function extrafile.cacheFileSystem()
 	
 	local environment = system.getInfo("environment")
 	if environment == "simulator" and not cacheFilesystem then
-		loggerLog("[Extrafile] Caching filesystem")
+		loggerLog("Caching filesystem")
 		local baseDir = system.pathForFile().."/"
+		logger.log(baseDir)
 		local fileSystemFile = io.open(baseDir..DATA_DIRECTORY.."/"..FILESYSTEM_CACHE_FILENAME, "w")
 		if fileSystemFile then
 			cacheFilesystem = getFileSystemTable("")
@@ -356,7 +353,7 @@ function extrafile.cacheFileSystem()
 				local submoduleHandle = io.popen("cd '"..currentPath.."';git submodule status")
 				for submodule in submoduleHandle:lines() do
 					submodules[#submodules + 1] = submodule
-					logger.log("[Extrafile] Using submodule: "..tostring(submodule))
+					logger.log("Using submodule: "..tostring(submodule))
 				end
 				submoduleHandle:close()
 			end)
@@ -369,7 +366,7 @@ function extrafile.cacheFileSystem()
 				submodules = submodules,
 			}
 			
-			logger.log("[Extrafile] Cache git timestamp: "..(gitTimestamp ~= nil and tostring(gitTimestamp) or ""))
+			logger.log("Cache git timestamp: "..(gitTimestamp ~= nil and tostring(gitTimestamp) or ""))
 			
 			local fileSystemJson = json.encode(filesystemData)
 			fileSystemFile:write(tostring(fileSystemJson))
@@ -390,15 +387,15 @@ function extrafile.cacheFileSystem()
 				submodules = filesystemData.submodules
 				
 				if gitTimestamp then
-					logger.log("[Extrafile] Cache git timestamp: "..tostring(gitTimestamp))
+					logger.log("Cache git timestamp: "..tostring(gitTimestamp))
 				end
 				if submodules and #submodules > 0 then
 					for index = 1, #submodules do
-						logger.log("[Extrafile] Cache registered submodule: "..tostring(submodules[index]))
+						logger.log("Cache registered submodule: "..tostring(submodules[index]))
 					end
 				end
 			else
-				loggerError("[Extrafile] Could not load filesystem cache")
+				loggerError("Could not load filesystem cache")
 			end
 		end
 	end

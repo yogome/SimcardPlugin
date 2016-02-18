@@ -49,6 +49,7 @@ local function recognizePattern(event)
 		target.isFocus = true
 		if target.timer then
 			timer.cancel(target.timer)
+			target.timer = nil
 		end
 	elseif target.isFocus then
 		if "moved" == phase then
@@ -56,6 +57,11 @@ local function recognizePattern(event)
 		elseif "ended" == phase or "cancelled" == phase then
 			display.getCurrentStage():setFocus( target, nil )
 			target.isFocus = false
+			
+			if target.timer then
+				timer.cancel(target.timer)
+				target.timer = nil
+			end
 			target.timer = timer.performWithDelay(target.liftTime, function()
 				local calculatedValue = target:calculatePattern()
 				
@@ -90,6 +96,13 @@ local function lowerMatrixResolution(matrix, staticPatternRows, staticPatternCol
 		end
 	end
 	return upscaledDrawnPattern
+end
+
+local function destroyPatternRecongniezer(event)
+	if event.target.timer then
+		timer.cancel(event.target.timer)
+		event.target.timer = nil
+	end
 end
 
 function patterns.newRecognizer(options)
@@ -250,6 +263,7 @@ function patterns.newRecognizer(options)
 	end
 	
 	recognizeGroup:addEventListener("touch", recognizePattern)
+	recognizeGroup:addEventListener("finalize", destroyPatternRecongniezer)
 	
 	return recognizeGroup
 end
@@ -269,13 +283,13 @@ function patterns.loadPatternFile(filename, baseDir)
 		newPatternData = extrajson.decodeFixed(savedData)
 		io.close(languageFile)
 	end) then
-		logger.log([[[Patterns] Read pattern data.]])
+		logger.log([[Read pattern data.]])
 	else
-		logger.error([[[Patterns] Pattern data file was not found.]])
+		logger.error([[Pattern data file was not found.]])
 	end
 	
 	if not newPatternData then
-		logger.error([[[Patterns] Pattern data file contains no data.]])
+		logger.error([[Pattern data file contains no data.]])
 	else
 		for index = 1, #newPatternData do
 			loadedPatterns[#loadedPatterns + 1] = newPatternData[index]

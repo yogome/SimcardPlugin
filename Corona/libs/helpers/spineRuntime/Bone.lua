@@ -48,16 +48,10 @@ function Bone.new(data, skeleton, parent)
 			self.worldFlipY = parent.worldFlipY ~= self.flipY
 		else
 			local skeletonFlipX, skeletonFlipY = self.skeleton.flipX, self.skeleton.flipY
-			if skeletonFlipX then
-				self.worldX = -self.x
-			else
-				self.worldX = self.x
-			end
-			if skeletonFlipY then
-				self.worldY = -self.y
-			else
-				self.worldY = self.y
-			end
+			
+			self.worldX = skeletonFlipX and -self.x or self.x
+			self.worldY = skeletonFlipY and -self.y or self.y
+
 			self.worldScaleX = self.scaleX
 			self.worldScaleY = self.scaleY
 			self.worldRotation = self.rotationIK

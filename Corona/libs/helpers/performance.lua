@@ -1,7 +1,9 @@
 ----------------------------------------------- Performance
 local path = ...
 local folder = path:match("(.-)[^%.]+$")
-local logger = require( folder.."logger" )
+local logger = require(folder.."logger")
+local internet = require(folder.."internet")
+local colors = require(folder.."colors")
 local performance = {}
 ---------------------------------------------- Variables
 local currentLoop, previousTime, MAX_SAVED_FPS, lastFPSCounter
@@ -34,7 +36,7 @@ local function avgElement(tableIn)
 end
 
 local function createInstance()
-	logger.log("[Performance] Creating performance counter.")
+	logger.log("Creating performance counter.")
 	currentLoop = 0
 	previousTime = 0
 	
@@ -43,6 +45,14 @@ local function createInstance()
 	
 	local counter = {}
 	counter.group = display.newGroup()
+	
+	local internetIndicator = display.newRect(-140,-40,6,6)
+	internetIndicator.anchorX, internetIndicator.anchorY = 0, 0
+	internetIndicator.alpha = 0.5
+	internet.addChangeListener(function(event)
+		local color = event.isConnected and colors.green or colors.red
+		internetIndicator:setFillColor(unpack(color))
+	end)
 
 	counter.memory = display.newText("0/10", 0, -15, native.systemFont, 24)
 	counter.framerate = display.newText("0", 0, 15, native.systemFont, 26)
@@ -55,6 +65,7 @@ local function createInstance()
 	counter.group:insert(background)
 	counter.group:insert(counter.memory)
 	counter.group:insert(counter.framerate)
+	counter.group:insert(internetIndicator)
 	
 	function counter:enterFrame(event)
 		currentLoop = currentLoop + 1

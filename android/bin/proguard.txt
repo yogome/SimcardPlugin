@@ -1,39 +1,39 @@
-# view AndroidManifest.xml #generated:62
+# view AndroidManifest.xml #generated:65
 -keep class com.ansca.corona.CameraActivity { <init>(...); }
 
-# view AndroidManifest.xml #generated:44
+# view AndroidManifest.xml #generated:47
 -keep class com.ansca.corona.CoronaActivity { <init>(...); }
 
-# view AndroidManifest.xml #generated:79
+# view AndroidManifest.xml #generated:82
 -keep class com.ansca.corona.CoronaService { <init>(...); }
 
-# view AndroidManifest.xml #generated:87
+# view AndroidManifest.xml #generated:90
 -keep class com.ansca.corona.SystemStartupBroadcastReceiver { <init>(...); }
 
-# view AndroidManifest.xml #generated:66
+# view AndroidManifest.xml #generated:69
 -keep class com.ansca.corona.VideoActivity { <init>(...); }
 
-# view AndroidManifest.xml #generated:94
+# view AndroidManifest.xml #generated:97
 -keep class com.ansca.corona.notifications.AlarmManagerBroadcastReceiver { <init>(...); }
 
-# view AndroidManifest.xml #generated:98
+# view AndroidManifest.xml #generated:101
 -keep class com.ansca.corona.notifications.GoogleCloudMessagingBroadcastReceiver { <init>(...); }
 
-# view AndroidManifest.xml #generated:95
+# view AndroidManifest.xml #generated:98
 -keep class com.ansca.corona.notifications.StatusBarBroadcastReceiver { <init>(...); }
 
-# view AndroidManifest.xml #generated:108
+# view AndroidManifest.xml #generated:111
 -keep class com.ansca.corona.purchasing.GoogleStoreBroadcastReceiver { <init>(...); }
 
-# view AndroidManifest.xml #generated:69
+# view AndroidManifest.xml #generated:72
 -keep class com.ansca.corona.purchasing.StoreActivity { <init>(...); }
 
-# view AndroidManifest.xml #generated:74
+# view AndroidManifest.xml #generated:77
 -keep class com.ansca.corona.storage.FileContentProvider { <init>(...); }
 
-# view AndroidManifest.xml #generated:37
+# view AndroidManifest.xml #generated:40
 -keep class com.yogome.yappkids.CoronaApplication { <init>(...); }
 
-# view AndroidManifest.xml #generated:56
+# view AndroidManifest.xml #generated:59
 -keep class plugin.simcard.ExtendedWebView { <init>(...); }
 

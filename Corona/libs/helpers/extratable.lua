@@ -47,7 +47,7 @@ end
 function extratable.deepcopy(originalTable)
 	local typeOriginal = type(originalTable)
 	local copyTable
-	if typeOriginal == "table" then
+	if typeOriginal == "table" and not (originalTable._proxy or originalTable._class) then
 		copyTable = {}
 		for key, value in next, originalTable, nil do
 			copyTable[extratable.deepcopy(key)] = extratable.deepcopy(value)
@@ -196,6 +196,18 @@ function extratable.getRandom(t1, count)
 		randomNewTable[index] = extratable.deepcopy(t1[randomIndices[index]])
 	end
 	return randomNewTable
+end
+
+function extratable.findTableWithKey(tab, key, value)
+	if tab and #tab > 0 then
+		for index = 1, #tab do
+			if tab[index] and tab[index][key] then
+				if tab[index][key] == value then
+					return tab[index]
+				end
+			end
+		end
+	end
 end
 
 return extratable

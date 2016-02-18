@@ -1,61 +1,35 @@
----------------------------------------------- Sound
+---------------------------------------------- Sound - Audio wrapper - (c) Basilio Germán
 local path = ...
 local folder = path:match("(.-)[^%.]+$")
-local logger = require( folder.."logger" )
-local extrafile = require( folder.."extrafile" )
-local extrastring = require( folder.."extrastring" )
-local database = require( folder.."database" )
-local al = require( "al" )
-local json = require( "json" )
+local logger = require(folder.."logger")
+local extrafile = require(folder.."extrafile")
+local extrastring = require(folder.."extrastring")
+local extratable = require(folder.."extratable")
+local database = require(folder.."database")
+local sound = require(folder.."music")
+local al = require("al")
+local json = require("json")
  
 local sound = {}
 --------------------------------------------- Variables
 local enabled
-local soundTable
-local currentChannel
-local completeFlagTable
-local pitchSource, resultingChannel
 local initialized
+
+local usedChannels
+local soundHandles
+local timers
 --------------------------------------------- Constants
-local CHANNEL_PITCH = 31 -- TODO play pitched sounds on any channel
 --------------------------------------------- Functions
-local function nextChannel()
-	currentChannel = currentChannel + 1
-	if currentChannel >= CHANNEL_PITCH then
-		currentChannel = 1
-	end
-end
-
-local function playSound(sound, completeSound, onComplete)
-	audio.setVolume(1, { channel = currentChannel})
-	local playedChannel = currentChannel
-	completeFlagTable[currentChannel] = completeSound
-	if completeSound then
-		audio.play(sound, { channel = currentChannel, onComplete = function()
-			completeFlagTable[currentChannel] = false
-		end})
-	else
-		if not completeFlagTable[currentChannel] then
-			if audio.isChannelActive(currentChannel) then
-				audio.stop(currentChannel)
-			end
-			audio.play(sound, { channel = currentChannel, onComplete = onComplete})
-		end
-	end
-	
-	nextChannel()
-	return {channel = playedChannel}
-end
-
 local function initialize()
 	if not initialized then
 		initialized = true
+		
+		usedChannels = {}
+		soundHandles = {}
+		
+		timers = {}
+		
 		enabled = database.config("sound")
-		completeFlagTable = {}
-		currentChannel = 1
-		for index = currentChannel, CHANNEL_PITCH - 1 do
-			completeFlagTable[index] = false
-		end
 		
 		if enabled == nil then
 			enabled = true
@@ -73,9 +47,54 @@ function sound.setEnabled(value)
 	enabled = value and value
 	database.config("sound", enabled)
 	if not enabled then
-		for channelIndex = 1, CHANNEL_PITCH - 1 do
-			audio.stop(channelIndex)
+		for index = 1, #usedChannels do
+			if usedChannels[index] ~= nil then
+				audio.stop(index)
+			end
 		end
+	end
+end
+
+function sound.loadTable(luaTable)
+	if not extratable.isEmpty(luaTable) then
+		for handleID, filename in pairs(luaTable) do
+			if not soundHandles[handleID] then
+				soundHandles[handleID] = audio.loadSound(filename)
+			else
+				logger.warn([[Sound with ID "]]..tostring(handleID)..[[" already exists.]])
+			end
+		end
+	end
+end
+
+function sound.loadFile(filename)
+	local path = system.pathForFile(filename, system.ResourceDirectory )
+	local jsonSoundlist
+
+	if pcall(function()
+		local soundFile = io.open(path, "r")
+		local fileData = soundFile:read("*a")
+		jsonSoundlist = json.decode(fileData)
+		io.close(soundFile)
+	end) then
+		sound.loadTable(jsonSoundlist)
+	else
+		logger.error([[File "]]..tostring(filename)..[[" was not found.]])
+	end
+end
+
+function sound.loadDirectory(directory)
+	if directory and "string" == type(directory) then
+		local files = extrafile.getFiles(directory)
+		
+		for index = 1, #files do
+			local split = extrastring.split(files[index], ".")
+			if split and #split == 2 and split[2] == "json" then
+				sound.loadFile(directory..files[index])
+			end
+		end
+	else
+		logger.error([[Directory "]]..tostring(directory)..[[" was not found.]])
 	end
 end
 
@@ -83,151 +102,168 @@ function sound.stop(soundHandle)
 	if soundHandle and "table" == type(soundHandle) and soundHandle.channel and "number" == type(soundHandle.channel) then
 		if audio.isChannelActive(soundHandle.channel) then
 			audio.stop(soundHandle.channel)
+		elseif soundHandle.channel == 0 and not soundHandle.source and soundHandle.onCancel then -- Muted sound
+			if soundHandle.completeTimer then
+				timer.cancel(soundHandle.completeTimer)
+			end
+			soundHandle.onCancel()
 		end
 	end
 end
 
 function sound.stopAll(fadeTime)
 	fadeTime = fadeTime or 0
-	for index = 1, CHANNEL_PITCH - 1 do
-		if audio.isChannelActive(index) then
-			if fadeTime <=0 then
-				audio.stop(index)
-			else
-				audio.fade({ channel = index, time = fadeTime, volume = 0})
-			end
-		end
-	end
-end
-
-function sound.loadSounds(soundlist)
-	soundlist = soundlist or {}
-	if not soundTable then
-		soundTable = {}
-	end
-	
-	if "table" == type(soundlist) then
-		if #soundlist > 0 then
-			logger.log("[Sound] Will load "..#soundlist.." sounds...")
-			for index = 1, #soundlist do
-				if soundlist[index] and soundlist[index].id and soundlist[index].path then
-					soundTable[soundlist[index].id] = audio.loadSound(soundlist[index].path)
-				end
-			end
-		else
-			logger.log("[Sound] There were no sounds to load.")
-		end
-	elseif "string" == type(soundlist) then
-		local soundFile = soundlist
-		
-		local path = system.pathForFile(soundFile, system.ResourceDirectory )
-		local jsonSoundlist
-		
-		if pcall(function()
-			local soundFile = io.open( path, "r" )
-			local fileData = soundFile:read( "*a" )
-			jsonSoundlist = json.decode(fileData)
-			io.close(soundFile)
-		end) then
-			local realSoundList = {}
-			for key, value in pairs(jsonSoundlist) do
-				realSoundList[#realSoundList + 1] = {id = key, path = value}
-			end
-			sound.loadSounds(realSoundList)
-		else
-			logger.error([[[Sound] File "]]..soundlist..[[" was not found.]])
-		end
-	end
-end
-
-function sound.loadDirectory(directoryPath)
-	local allFiles = extrafile.getFiles(directoryPath)
-	for index = 1, #allFiles do
-		local fileName = allFiles[index]
-		if string.len(fileName) >= 5 then -- "a.aaa"
-			local split = extrastring.split(fileName, ".")
-			if #split == 2 then
-				if split[2] == "json" then
-					sound.loadSounds(directoryPath..fileName)
+	for index = 1, #usedChannels do
+		if usedChannels[index] ~= nil then
+			if audio.isChannelActive(index) then
+				if fadeTime <=0 then
+					audio.stop(index)
+				else
+					audio.fade({ channel = index, time = fadeTime, volume = 0})
 				end
 			end
 		end
 	end
 end
 
-function sound.playPitch( soundID , loopForever, pitch)
-	if enabled then
-		local loops = loopForever and -1 or 0
-		pitch = pitch or 1
-		if not audio.isChannelActive( CHANNEL_PITCH ) then
-			audio.setVolume(1, { channel = CHANNEL_PITCH})
-			resultingChannel, pitchSource = audio.play(soundTable[soundID], { channel = CHANNEL_PITCH, loops = loops,})
-			al.Source(pitchSource, al.PITCH, pitch)
-			if resultingChannel == 0 then
-				-- TODO handle not playing the sound
-			end
-		end
-	end
-end
-
-function sound.setPitch( pitch )
-	if audio.isChannelActive( CHANNEL_PITCH ) then
-		pitch = pitch or 1
-		if pitch and type(pitch) == "number" then
-			al.Source(pitchSource, al.PITCH, pitch)
-		end
-	end
-end
-
-function sound.stopPitch()
-	if audio.isChannelActive( CHANNEL_PITCH ) then
-		al.Source(pitchSource, al.PITCH, 1)
-		audio.stop(CHANNEL_PITCH)
-	end
-end
-
-function sound.playRepeat(soundID) -- TODO implement playRepeat
-	logger.log("[Sound] playRepeat is not implemented yet")
-end
-
-function sound.play( soundID, options)
-	options = options or {}
-	local onComplete = nil
-	local completeSound = false
-	if options and "boolean" == type(options) then
-		completeSound = options
-	else
-		completeSound = options.completeSound
-		
-		if options.onComplete and "function" == type(options.onComplete) then
-			onComplete = options.onComplete
-		end
-	end
+function sound.setPitch(soundHandle, pitch)
+	assert(type(soundHandle) == "table", "setPitch first parameter is the handle")
+	pitch = pitch or 1
 	
-	if enabled then	
-		if soundTable[soundID] then
-			return playSound(soundTable[soundID], completeSound, onComplete)
-		else
-			logger.error("[Sound] "..tostring(soundID).." is nil.")
+	if soundHandle.source and soundHandle.channel then
+		if usedChannels[soundHandle.channel] == soundHandle.uniqueID then
+			al.Source(soundHandle.source, al.PITCH, pitch)
 		end
 	end
 end
 
-function sound.playSequence(soundIDs, options) -- TODO return handle
+function sound.setVolume(soundHandle, volume)
+	assert(type(soundHandle) == "table", "setVolume first parameter is the handle")
+	volume = volume or 1
+	
+	if soundHandle.source and soundHandle.channel then
+		if usedChannels[soundHandle.channel] == soundHandle.uniqueID then
+			audio.setVolume(volume, {source = soundHandle.source})
+		end
+	end
+end
+
+function sound.play(soundID, options)
 	options = options or {}
+	
+	assert("table" == type(options), "options must be a table")
+	
+	local pitch = options.pitch or 1
+	local volume = options.volume or 1
 	local onComplete = options.onComplete
-	local debugSequence = options.debug
+	local onCancel = options.onCancel
+	local fadeTime = options.fadeTime
+	local duration = options.duration
+	local loops = options.loops or 0
+	local forcedChannel = options.forcedChannel
 	
-	if soundIDs and "table" == type(soundIDs) and #soundIDs > 0 then
+	if enabled then
+		local handle = soundHandles[soundID]
+		if handle then
+			local freeChannel = forcedChannel or audio.findFreeChannel()
+			
+			if freeChannel ~= 0 then
+				if audio.isChannelActive(freeChannel) then -- Stop channel if forced on channel
+					audio.stop(freeChannel)
+				end
+
+				local uniqueID = system.getTimer()
+				usedChannels[freeChannel] = uniqueID
+
+				audio.setVolume(volume, {channel = freeChannel})
+				local source = audio.getSourceFromChannel(freeChannel)
+				al.Source(source, al.PITCH, pitch)
+				
+				local function onCompleteWrapper(event)
+					if event.completed then
+						if onComplete and "function" == type(onComplete) then
+							onComplete()
+						end
+					elseif onCancel and "function" == type(onCancel) then
+						onCancel()
+					end
+				end
+
+				local channel, source = audio.play(handle, {channel = freeChannel, loops = loops, onComplete = onCompleteWrapper, fadein = fadeTime, duration = duration})
+				
+				local variablePitch = pitch
+				local variableVolume = volume
+				return setmetatable({source = source, channel = channel, uniqueID = uniqueID}, {
+					__newindex = function(self, key, value)
+						if key == "pitch" then
+							variablePitch = value
+							sound.setPitch(self, variablePitch)
+						elseif key == "volume" then
+							variableVolume = value
+							sound.setVolume(self, variableVolume)
+						else
+							rawset(self, key, value)
+						end
+					end,
+					__index = function(self, key)
+						if key == "pitch" then
+							return variablePitch
+						elseif key == "volume" then
+							return variableVolume
+						else
+							return rawget(self, key)
+						end
+					end
+				})
+			else
+				
+			end
+		else
+			logger.warn([[The soundID "]]..tostring(soundID)..[[" has no sound associated with it]])
+		end
+	else -- Play muted sound
+		local emptyHandle = {channel = 0, source = nil, onComplete = onComplete, onCancel = onCancel}
+		if onComplete then
+			local delay = sound.getDuration(soundID)
+			emptyHandle.completeTimer = timer.performWithDelay(delay, function()
+				emptyHandle.completeTimer = nil
+				onComplete()
+			end)
+		end
+		
+		return emptyHandle
+	end
+end
+
+function sound.playSequence(soundIDs, options)
+	options = options or {}
+	
+	local pitch = options.pitch or 1
+	local volume = options.volume or 1
+	local onComplete = options.onComplete
+	local onCancel = options.onCancel
+	local loops = options.loops or 0
+	
+	if not extratable.isEmpty(soundIDs) then
+		
+		local freeChannel = audio.findFreeChannel()
+		if freeChannel == 0 then -- Failed to find free channel, use last channel.
+			freeChannel = #usedChannels
+		end
+				
 		local function playNextSound(soundIndex)
 			local soundID = soundIDs[soundIndex]
 			if soundID then
-				if debugSequence then
-					logger.log([[[Sound] Will now play "]]..tostring(soundID)..[["]])
-				end
-				sound.play(soundIDs[soundIndex], {onComplete = function()
-					playNextSound(soundIndex + 1)
-				end})
+				return sound.play(soundIDs[soundIndex], {forcedChannel = freeChannel, pitch = pitch, volume = volume, loops = loops, 
+					onComplete = function(event)
+						playNextSound(soundIndex + 1)
+					end,
+					onCancel = function()
+						if onCancel and "function" == type(onCancel) then
+							onCancel()
+						end
+					end,
+				})
 			else
 				if onComplete and "function" == type(onComplete) then
 					onComplete()
@@ -239,15 +275,22 @@ function sound.playSequence(soundIDs, options) -- TODO return handle
 	end
 end
 
-function sound.testSounds()
-	local sequence = {}
-	for index, value in pairs(soundTable) do
-		sequence[#sequence + 1] = index
-	end
-	
-	sound.playSequence(sequence)
+function sound.getDuration(soundID)
+	return audio.getDuration(soundHandles[soundID])
+end
+--------------------------------------------- Deprecated functions
+function sound.playPitch()
+	logger.warn("playPitch is deprecated, use .play with pitch option")
 end
 
+function sound.stopPitch()
+	logger.warn("stopPitch is deprecated, use .stop instead")
+end
+
+function sound.playRepeat(soundID) -- TODO implement playRepeat
+	logger.log("playRepeat was never implemented and is now deprecated, use .play with repeat option")
+end
+--------------------------------------------- Execution
 initialize()
 
 return sound

@@ -701,7 +701,7 @@ function keyboard:show(params)
 		reset()
 		if not params.mode then
 			if value == nil then
-				logger.log("[Keyboard] Automatically setting keyboard to string.")
+				logger.log("Automatically setting keyboard to string.")
 				self.mode = "string"
 			else
 				self.mode = type(value)
@@ -749,13 +749,13 @@ function keyboard:show(params)
 			end})
 		end
 	else
-		logger.log("[Keyboard] keyboard is already showing.")
+		logger.log("keyboard is already showing.")
 	end
 end
 
 function keyboard:create()
 	if not created then
-		logger.log("[Keyboard] Creating keyboard.")
+		logger.log("Creating keyboard.")
 		
 		created = true
 		stringBuffer = ""

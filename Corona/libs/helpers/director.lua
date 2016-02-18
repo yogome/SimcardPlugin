@@ -224,7 +224,7 @@ local function performanceHook(object, event)
 		
 		if performanceRecords[object._name][phase].measurements > 3 then
 			if nestingWarning or childrenWarning then
-				logger.error([[[Director] scene "]]..object._name..[[" might have a graphic memory leak. C]]..previousTotalChildren..[[:]]..performanceRecords[object._name][phase].totalChildren..[[ N]]..previousMaxNesting..[[:]]..performanceRecords[object._name][phase].maxNesting..[[ M]]..performanceRecords[object._name][phase].measurements)
+				logger.error([[scene "]]..object._name..[[" might have a graphic memory leak. C]]..previousTotalChildren..[[:]]..performanceRecords[object._name][phase].totalChildren..[[ N]]..previousMaxNesting..[[:]]..performanceRecords[object._name][phase].maxNesting..[[ M]]..performanceRecords[object._name][phase].measurements)
 			end
 		end
 	end
@@ -258,7 +258,7 @@ end
 
 local function eventDispatcher(scene, event)
 	if debugDirector then
-		logger.log("[Director] Dispatching event:"..event.name..(event.phase and (", phase:"..event.phase) or ""))
+		logger.log("Dispatching event:"..event.name..(event.phase and (", phase:"..event.phase) or ""))
 	end
 	
 	localizationHook(scene, event)
@@ -267,7 +267,7 @@ local function eventDispatcher(scene, event)
 	if crashProtection then
 		local success, message = pcall(function() scene:dispatchEvent(event) end)
 		if not success then
-			logger.error([[[Director] Crash protection prevented a critical crash on ]]..scene._name..[[ on  event "]]..event.name..[["]])
+			logger.error([[Crash protection prevented a critical crash on ]]..scene._name..[[ on  event "]]..event.name..[["]])
 			logger.error(message)
 		end
 	else
@@ -409,6 +409,8 @@ local function showEditWindow(displayObject)
 	
 	propertyWindow = dialog.newPropertyWindow({
 		title = "Edit "..objectKind,
+		width = 600,
+		propertyOrder = {"x", "y", "xScale", "yScale", "width", "height", "rotation", "alpha", "isVisible", "anchorChildren", "text"},
 		properties = {
 			x = stringFormat("%.02f", displayObject.x),
 			y = stringFormat("%.02f", displayObject.y),
@@ -418,6 +420,8 @@ local function showEditWindow(displayObject)
 			anchorY = stringFormat("%.02f", displayObject.anchorY),
 			xScale = stringFormat("%.02f", displayObject.xScale),
 			yScale = stringFormat("%.02f", displayObject.yScale),
+			width = stringFormat("%d", displayObject.width or 0),
+			height = stringFormat("%d", displayObject.height or 0),
 			isVisible = tostring(displayObject.isVisible),
 			anchorChildren = tostring(displayObject.anchorChildren),
 			text = displayObject.text,
@@ -430,9 +434,11 @@ local function showEditWindow(displayObject)
 			displayObject.yScale = tonumber(newProperties.yScale) or 1
 			displayObject.anchorX = tonumber(newProperties.anchorX) or 0.5
 			displayObject.anchorY = tonumber(newProperties.anchorY) or 0.5
+			displayObject.width = tonumber(newProperties.width) or 0
+			displayObject.height = tonumber(newProperties.height) or 0
 			displayObject.rotation = tonumber(newProperties.rotation) or 0
 			displayObject.isVisible = string.match(tostring(newProperties.isVisible), "true") and true or nil
-			displayObject.anchorChildren = string.match(tostring(newProperties.isVisible), "true") and true
+			displayObject.anchorChildren = string.match(tostring(newProperties.anchorChildren), "true") and true
 			displayObject.text = newProperties.text
 			
 			timer.performWithDelay(1, function()
@@ -533,13 +539,17 @@ local function editorKeyListener(event)
 					elseif keycode == keycodes["P"] then
 						local position = isShiftDown and {"object.x = display.contentCenterX + %d\nobject.y = display.contentCenterY + %d", editObject.x - display.contentCenterX, editObject.y - display.contentCenterY} or {"object.x = %d\nobject.y = %d", editObject.x, editObject.y}
 						logger.line()
-						logger.log(string.format(unpack(position)))
-						logger.log(string.format("object.anchorX = %.02f\nobject.anchorY = %.02f", editObject.anchorX, editObject.anchorY))
-						logger.log(string.format("object.xScale = %.03f\nobject.yScale = %.03f", editObject.xScale, editObject.yScale))
-						logger.log(string.format("object.rotation = %d\nobject.alpha = %.02f", editObject.rotation, editObject.alpha))
+						print(string.format(unpack(position)))
+						print(string.format("object.anchorX = %.02f\nobject.anchorY = %.02f", editObject.anchorX, editObject.anchorY))
+						print(string.format("object.xScale = %.03f\nobject.yScale = %.03f", editObject.xScale, editObject.yScale))
+						print(string.format("object.rotation = %d\nobject.alpha = %.02f", editObject.rotation, editObject.alpha))
+						
+						if editObject.width and editObject.height and (editObject.width > 0 or editObject.height > 0) then
+							print(string.format("object.width = %d\nobject.height = %d", editObject.width, editObject.height))
+						end
 						
 						if editObject.text then
-							logger.log(string.format("object.text = %s", editObject.text))
+							print(string.format("object.text = %s", editObject.text))
 						end
 						logger.line()
 					elseif keycode == keycodes["D"] then
@@ -582,10 +592,10 @@ local function initialize()
 		
 		local function handleLowMemory(event)
 			if director.handleLowMemory then
-				logger.log("[Director] Received memory warning, will remove hidden scenes")
+				logger.log("Received memory warning, will remove hidden scenes")
 				director.removeHidden(true)
 			else
-				logger.log("[Director] Received memory warning but handling is disabled")		
+				logger.log("Received memory warning but handling is disabled")		
 			end
 		end
 		Runtime:addEventListener("memoryWarning", handleLowMemory)
@@ -594,8 +604,8 @@ local function initialize()
 			timer.performWithDelay(SIMULATOR_MEMORY_WARNING_INTERVAL, function()
 				local memoryUsed = system.getInfo("textureMemoryUsed") * 0.00000095 + collectgarbage("count") * 0.00095
 				if memoryUsed >= director.maxSimulatorMemory then
-					logger.error("[Director] Memory exceeded "..tostring(director.maxSimulatorMemory).."mb, simulating memory warning.")
-					handleLowMemory({})
+					logger.error("Memory exceeded "..tostring(director.maxSimulatorMemory).."mb, simulating memory warning.")
+					Runtime:dispatchEvent({name = "memoryWarning"})
 				end
 			end, -1)
 		end
@@ -753,7 +763,7 @@ function director.loadScene(sceneName, options, params)
 		end)
 
 		if not success and message then
-			logger.error([[[Director] Error with scene "]]..sceneName..[[".]])
+			logger.error([[Error with scene "]]..sceneName..[[".]])
 			logger.error(message)
 			return
 		end
@@ -770,7 +780,7 @@ function director.showScene(sceneName, zIndex, options, parentScene)
 	options = options or {}
 	
 	if debugDirector then
-		logger.log("[Director] will show scene "..sceneName.."")
+		logger.log("will show scene "..sceneName)
 	end
 	
 	local params = options.params
@@ -834,7 +844,7 @@ function director.showScene(sceneName, zIndex, options, parentScene)
 			if not pcall(function()
 				director.showingScenes[zIndex].view:insert(scene.view)
 			end) then
-				error([[[Director] Scene "]]..sceneName..[[" does not have a valid view. Did you remove it by accident?]], 4)
+				error([[Scene "]]..sceneName..[[" does not have a valid view. Did you remove it by accident?]], 4)
 			end
 		end
 		
@@ -853,7 +863,7 @@ function director.showScene(sceneName, zIndex, options, parentScene)
 			end)
 			
 			if not success and message then
-				logger.error([[[Director] Error with scene "]]..sceneName..[[".]])
+				logger.error([[Error with scene "]]..sceneName..[[".]])
 				logger.error(message)
 				return
 			end
@@ -1156,17 +1166,17 @@ function director.purgeScene(sceneName, shouldRecycle)
 						director.sceneDictionary[sceneName] = nil
 					end
 					collectgarbage( "collect" )
-					logger.log([[[Director] Purged scene "]]..sceneName..[[".]])
+					logger.log([[Purged scene "]]..sceneName..[[".]])
 				end
 			else
-				logger.log([[[Director] Scene "]]..sceneName..[[" cannot be purged, it is the current scene or current overlay, queueing.]])
+				logger.log([[Scene "]]..sceneName..[[" cannot be purged, it is the current scene or current overlay, queueing.]])
 				scene._unloadCounter = scene._unloadCounter or 0
 				scene._unloadCounter = scene._unloadCounter + 1
 			end
 		end
 	else
 		if not scene then
-			logger.error([[[Director] Can't purge scene "]]..sceneName..[[". It does not exist.]])
+			logger.error([[Can't purge scene "]]..sceneName..[[". It does not exist.]])
 		end
 	end
 end
@@ -1229,7 +1239,7 @@ function director.newLocalizedImage(sceneName, ...)
 			scene._images[#scene._images + 1] = localizedImage
 			return localizedImage
 		else
-			logger.error("[Director] Image "..filename.." does not exist")
+			logger.error("Image "..filename.." does not exist")
 		end
 	end
 end
@@ -1299,7 +1309,7 @@ function director.performWithDelay(sceneName, delay, listener, iterations)
 	if scene and scene._timers then
 		local timerHandle = timer.performWithDelay(delay, function(event)
 			listener(event)
-			extratable.removeItem(scene._timers, timerHandle)
+			extratable.removeItem(scene._timers, event.source)
 		end, iterations)
 		scene._timers[#scene._timers + 1] = timerHandle
 		return timerHandle
@@ -1342,6 +1352,30 @@ function director.setActivityIndicator(state)
 	end
 	
 	activityIndicator:animate(state)
+end
+
+function director.getElementByID(sceneName, id)
+	local scene = director.sceneDictionary[sceneName]
+	if scene and scene.view then
+		local function searchChildren(group)
+			if group.id == id then
+				return group
+			end
+			if group.numChildren then
+				for index = 1, group.numChildren do
+					local displayObject = group[index]
+					if displayObject.id == id then
+						return displayObject
+					end
+					if displayObject.numChildren then
+						return searchChildren(displayObject)
+					end
+				end
+			end
+		end
+		
+		return searchChildren(scene.view)
+	end
 end
 
 function director.setDebug(doDebug)

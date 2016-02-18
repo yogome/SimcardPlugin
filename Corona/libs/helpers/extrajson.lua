@@ -54,7 +54,7 @@ function extrajson.decodeFixed(inputTable)
 	end)
 
 	if not success and message then
-		logger.error("[Extrajson] there was an error decoding JSON")
+		logger.error("there was an error decoding JSON")
 		return
 	end
 	

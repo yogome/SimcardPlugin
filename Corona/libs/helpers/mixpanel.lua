@@ -1,15 +1,15 @@
 --------------------------------------------- Mixpanel
 local path = ...
 local folder = path:match("(.-)[^%.]+$")
-local offlinequeue = require( folder.."offlinequeue" )
-local logger = require( folder.."logger" )
-local extratable = require( folder.."extratable" )
-local extrastring = require( folder.."extrastring" )
-local crypto = require( "crypto" )
-local mime = require( "mime" )
-local json = require( "json" )
+local offlinequeue = require(folder.."offlinequeue")
+local extrastring = require(folder.."extrastring")
+local extratable = require(folder.."extratable")
+local logger = require(folder.."logger")
 local http = require("socket.http")
+local crypto = require( "crypto")
 local ltn12 = require("ltn12")
+local mime = require("mime")
+local json = require("json")
 
 local mixpanel = {}
 --------------------------------------------- Variables
@@ -24,7 +24,6 @@ local debugMixpanel
 
 local mixpanelGraphicEvents
 local pendingIncrementValues
-local addedErrorListener
 --------------------------------------------- Constants
 local TIMEOUT_ASYNC_EVENT = 2 
 local ENDPOINT_EVENTS = "https://api.mixpanel.com/track/"
@@ -74,9 +73,9 @@ local function errorListener(event)
 		stackTrace = createShortStackTrace(event.stackTrace),
 		errorID = errorID,
 	}
-	logger.log([[[Mixpanel] Logging error "]]..errorID)
+	logger.log([[Logging error "]]..errorID)
 	mixpanel.logEvent("RuntimeError", eventParameters)
-	return true
+	return false
 end 
 
 local function rehashGraphicEvents()
@@ -192,7 +191,7 @@ local function createDistinctID()
 		fileObject:write( distinctID )
 		io.close(fileObject)
 	end
-	logger.log("[Mixpanel] "..(extrastring.isValidEmail(distinctID) and "remote " or "local ").."distinctID: "..distinctID)
+	logger.log((extrastring.isValidEmail(distinctID) and "remote " or "local ").."distinctID: "..distinctID)
 	native.setSync(FILENAME_MIXPANEL, {iCloudBackup = false})
 end
 
@@ -218,7 +217,7 @@ local function createProperties(gameName, gameVersion)
 		properties["$app_version"] = system.getInfo("androidAppVersionCode")
 	elseif platformName == "iPhone OS" then
 		properties["$manufacturer"] = "Apple"
-		properties["$ios_ifa"] = system.getInfo("iosAdvertisingIdentifier")
+		properties["$ios_ifa"] = system.getInfo("iosAdvertisingIdentifier") -- TODO this seems to be broken
 		properties["$ios_device_model"] = system.getInfo("architectureInfo")
 	end
 	
@@ -238,12 +237,14 @@ local function validateResponse(response)
 		local number = string.sub(response, -3, -3)
 		local success = number == "1"
 		if success then
-			logger.log("[Mixpanel] Event "..eventName.." was sent successfully.")
+			logger.log("Event "..eventName.." was sent successfully.")
 		else
-			logger.error("[Mixpanel] Event "..eventName.." was sent, but was unsuccessful.")
+			logger.error("Event "..eventName.." was sent, but was unsuccessful.")
+			return false
 		end
 	else
-		logger.error("[Mixpanel] No valid response received.")
+		logger.error("No valid response received.")
+		return false
 	end
 end
 
@@ -292,6 +293,11 @@ local function trackEvent(eventName, parameters, async)
 	end
 end
 
+local function getPushToken()
+	if pushNotificationToken then
+		return {tostring(pushNotificationToken)}
+	end
+end
 --------------------------------------------- Module functions
 function mixpanel.updateProfile(setValues, incrementValues, setOnceValues, unionValues)
 	if distinctID then
@@ -309,7 +315,7 @@ function mixpanel.updateProfile(setValues, incrementValues, setOnceValues, union
 			end
 			
 			local unionTable = extratable.merge({
-				["$ios_devices"] = {mime.b64(pushNotificationToken)},
+				["$ios_devices"] = getPushToken(),
 				["AppsUsed"] = properties and properties.gameName and {properties.gameName},
 			}, unionValues or {})
 
@@ -356,23 +362,23 @@ function mixpanel.updateProfile(setValues, incrementValues, setOnceValues, union
 		else
 			if incrementValues and "table" == type(incrementValues) then
 				mergeIncrementValues(incrementValues)
-				logger.log("[Mixpanel] no distinct id, queueing increment values.")
+				logger.log("no distinct id, queueing increment values.")
 			else
-				logger.error("[Mixpanel] Profile updating is only available for email distinctID's")
+				logger.error("Profile updating is only available for email distinctID's")
 			end
 		end
 	end
 end 
 
 function mixpanel.setPushToken(pushToken)
-	logger.log("[Mixpanel] Setting push token to "..pushToken)
+	logger.log("Setting push token to "..pushToken)
 	pushNotificationToken = pushToken
 end
 
 function mixpanel.resetProfile()
 	local results, reason = os.remove( system.pathForFile( FILENAME_MIXPANEL, system.DocumentsDirectory))
 	if results then
-		logger.log("[Mixpanel] Profile was reset locally.")
+		logger.log("Profile was reset locally.")
 	end
 	currentEmail = nil
 	createDistinctID()
@@ -397,7 +403,6 @@ function mixpanel.initialize(token, gameName, gameVersion, debugFlag)
 		mixpanelGraphicEvents = {}
 		initialized = true
 		mixpanelToken = token
-		pushNotificationToken = system.getInfo("deviceID")
 		environment = system.getInfo("environment"),
 		
 		createDistinctID()
@@ -405,29 +410,30 @@ function mixpanel.initialize(token, gameName, gameVersion, debugFlag)
 		
 		local function mixpanelEventListener(event)
 			if event.isError then
-				logger.error("[Mixpanel] Event was not sent.")
+				logger.error("Event was not sent.")
 			else
-				validateResponse(event.response)
+				return validateResponse(event.response)
 			end
 		end
 		
 		local function mixpanelProfileListener(event)
 			if event.isError then
-				logger.error("[Mixpanel] profile update was not sent.")
+				logger.error("profile update was not sent.")
 			else
 				if event.response and event.response == "1" then
-					logger.log("[Mixpanel] Profile was updated!")
+					logger.log("Profile was updated!")
 				else
-					logger.error("[Mixpanel] profile update was sent but was unsuccessful.")
+					logger.error("profile update was sent but was unsuccessful.")
+					return false
 				end
 			end
 		end
 		
 		Runtime:addEventListener( "unhandledError", errorListener)
-		offlinequeue.addResultListener("mixpanelEvent", mixpanelEventListener)
+		offlinequeue.addResultListener("mixpanelEvent", mixpanelEventListener, true)
 		offlinequeue.addResultListener("mixpanelProfile", mixpanelProfileListener, true)
 		
-		logger.log("[Mixpanel] Initialized successfully")
+		logger.log("Initialized successfully")
 	end
 end
 
@@ -438,7 +444,7 @@ function mixpanel.logEvent(eventName, parameters, async)
 	end
 	
 	if initialized then
-		logger.log("[Mixpanel] Logging event: "..eventName)
+		logger.log("Logging event: "..eventName)
 		if "device" == environment or debugMixpanel then
 			trackEvent(eventName, parameters, async)
 			if debugMixpanel == "graphic" then
@@ -446,7 +452,7 @@ function mixpanel.logEvent(eventName, parameters, async)
 			end
 		end
 	else
-		logger.error("[Mixpanel] You must initialize mixpanel first!")
+		logger.error("You must initialize mixpanel first!")
 	end
 end
 
@@ -466,10 +472,10 @@ function mixpanel.setProfileEmail(email)
 			local dateCreatedString = string.format("%04d-%02d-%02dT%02d:%02d:%02d", currentUTCDate.year, currentUTCDate.month, currentUTCDate.day, currentUTCDate.hour, currentUTCDate.min, currentUTCDate.sec)
 			mixpanel.updateProfile(nil, nil, {dateCreated = dateCreatedString})
 		else
-			logger.error("[Mixpanel] A valid email was not provided!")
+			logger.error("A valid email was not provided!")
 		end
 	else
-		logger.error("[Mixpanel] You must initialize mixpanel first!")
+		logger.error("You must initialize mixpanel first!")
 	end
 end
 --------------------------------------------- Execution

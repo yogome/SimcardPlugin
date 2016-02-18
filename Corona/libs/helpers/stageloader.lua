@@ -17,6 +17,7 @@ local sceneryGroup
 local itemGroup
 local polygonGroup
 local foregroundGroup
+local customDataListener
 ------------------------------------------- Constants
 local GRAVITY_DEFAULT = {0, 32}
 local TEXTURE_SIZE = 256
@@ -38,6 +39,9 @@ local function reTexturePolygon(polygon, textureFile)
 	
 	local fillXScale = TEXTURE_SIZE / polygon.image.width
 	local fillYScale = TEXTURE_SIZE / polygon.image.height
+	
+	polygon.image.fill.x = ((polygon.image.x + polygon.image.width * 0.5) % TEXTURE_SIZE) / TEXTURE_SIZE -- We calculate real center
+	polygon.image.fill.y = ((polygon.image.y + polygon.image.height * 0.5) % TEXTURE_SIZE) / TEXTURE_SIZE
 	
 	polygon.image.fill.scaleX = fillXScale
 	polygon.image.fill.scaleY = fillYScale
@@ -127,12 +131,17 @@ local function loadPolygon(polygonData)
 		["xMax"] = -math.huge,
 		["yMax"] = -math.huge,
 		["textureFile"] = polygonData.textureFile,
+		["custom"] = polygonData.custom,
 	}
 	polygonGroup:insert(polygon.polygonView)
 	for vertexIndex = 1, #polygonData do
 		addVertex(polygon, polygonData[vertexIndex].x, polygonData[vertexIndex].y)
 	end
 	savePolygon(polygon, polygon.textureFile)
+	
+	if polygonData.custom and customDataListener and "function" == type(customDataListener) then
+		customDataListener({type = "polygon", target = polygon, data = polygonData.custom})
+	end
 end
 
 local function loadBackground(backgroundData)
@@ -145,7 +154,8 @@ local function loadBackground(backgroundData)
 		["xMax"] = -math.huge,
 		["yMax"] = -math.huge,
 		["textureFile"] = backgroundData.textureFile,
-		["foreground"] = backgroundData.foreground and true
+		["foreground"] = backgroundData.foreground and true,
+		["custom"] = backgroundData.custom,
 	}
 	
 	local parent = backgroundData.foreground and foregroundGroup or backgroundGroup
@@ -168,12 +178,16 @@ local function loadBackground(backgroundData)
 	image.alpha = backgroundData.alpha or image.alpha
 	
 	image:setFillColor(image.r, image.g, image.b)
+	
+	if backgroundData.custom and customDataListener and "function" == type(customDataListener) then
+		customDataListener({type = "background", target = background, data = backgroundData.custom})
+	end
 end
 
 local function addScenery(data)
 	local scenery = display.newImage(data.image)
-	scenery.anchorX = data.anchorX
-	scenery.anchorY = data.anchorY
+	scenery.anchorX = data.anchorX or 0.5
+	scenery.anchorY = data.anchorY or 1
 	scenery.x = data.x or 0
 	scenery.y = data.y or 0
 	scenery.xScale = data.xScale or 1
@@ -193,16 +207,22 @@ local function createRadialGravityField(gravityFieldData)
 	backgroundGroup:insert(gravityField)
 end
 
-local function addItem(positionX, positionY, itemIndex)
-	local item = itemLoader({
-		id = itemIndex,
-		x = positionX,
-		y = positionY,
-	})
+local function addItem(itemData)
+	itemData = itemData or {}
+	local positionX = itemData.x or 0
+	local positionY = itemData.y or 0
+	itemData.id = itemData.itemIndex
+	
+	local item = itemLoader(itemData, itemData.custom)
 	
 	if item then
 		item.x, item.y = positionX, positionY
+		item.rotation = itemData.rotation or 0
 		itemGroup:insert(item)
+		
+		if itemData.custom and customDataListener and "function" == type(customDataListener) then
+			customDataListener({type = "item", target = item, data = itemData.custom})
+		end
 	end
 end
 
@@ -210,6 +230,7 @@ end
 function stageloader.build(options)
 	local filename = options.filename
 	
+	customDataListener = options.customDataListener
 	itemLoader = options.itemLoader
 	sceneryData = options.sceneryData or {}
 	
@@ -276,16 +297,17 @@ function stageloader.build(options)
 				if levelData.sceneryList then
 					for index = 1, #levelData.sceneryList do
 						local sceneryData = levelData.sceneryList[index]
-						addScenery(sceneryData.sceneryIndex, sceneryData)
+						addScenery(sceneryData)
 					end
 					counts["scenery"] = #levelData.sceneryList
 				end
 
+				camera:setBounds() -- Reset camera bounds
 				if levelData.cameraBounds and not extratable.isEmpty(levelData.cameraBounds) then
 					if camera and camera.setBounds then
 						camera:setBounds(unpack(levelData.cameraBounds))
 					else
-						logger.error("[Stage builder] No camera to set bounds.")
+						logger.error("No camera to set bounds.")
 					end
 				end
 				
@@ -302,13 +324,12 @@ function stageloader.build(options)
 
 				if levelData.itemList then
 					for index = 1, #levelData.itemList do
-						local itemData = levelData.itemList[index]
-						addItem(itemData.x, itemData.y, itemData.itemIndex)
+						addItem(levelData.itemList[index])
 					end
 					counts["items"] = #levelData.itemList
 				end
 
-				logger.log("[Stage loader] "..tostring(filename).." was built.")
+				logger.log(tostring(filename).." was built.")
 				return newStage
 			end
 		end
@@ -324,13 +345,13 @@ function stageloader.build(options)
 				ioClose( fileObject )
 			end
 		end) then
-			logger.log("[Stage loader] Loaded "..tostring(filename).." succesfully.")
+			logger.log("Loaded "..tostring(filename).." succesfully.")
 			return buildStage(data)
 		else
-			logger.error("[Stage loader] "..tostring(filename).." could not be opened.")
+			logger.error(tostring(filename).." could not be opened.")
 		end
 	else
-		logger.error("[Stage loader] "..tostring(filename).." could not be opened.")
+		logger.error(tostring(filename).." could not be opened.")
 	end
 end
 

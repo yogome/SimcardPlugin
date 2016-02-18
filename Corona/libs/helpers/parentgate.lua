@@ -20,7 +20,6 @@ local padding = 16
 local imagePath = string.gsub(folder,"[%.]","/")
 local decorationBarColor = {36/255, 174/255, 195/255}
 local possibleAnswers = 5
-
 local function playSound()
 	if soundID then
 		sound.play(soundID)

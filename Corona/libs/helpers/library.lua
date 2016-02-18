@@ -53,45 +53,4 @@ local library = {
 	video = require( folder.."video" ),
 }
 
-function library.runTests()
-	logger.line("TESTS")
-	local testFiles = library.extrafile.getFiles(folderPath.."tests/")
-	for index = 1, #testFiles do
-		local splitFile = library.extrastring.split(testFiles[index], ".")
-		local filename = splitFile[1]
-		local extension = splitFile[2]
-		if filename and extension == "lua" then
-			local testNumber = 0
-			local failedTests = 0
-			local requireSuccess, requireMessage = pcall(function()
-				local testRequire = require(folder.."tests."..filename)
-				if not library.extratable.isEmpty(testRequire) then
-					for index, testFunction in pairs(testRequire) do
-						if testRequire[index] and "function" == type(testRequire[index]) then
-							testNumber = testNumber + 1
-							local testSuccess, testMessage = pcall(function()
-								testRequire[index]()
-							end)
-
-							if not testSuccess and testMessage then
-								logger.error([[[Testing] ]]..filename.."."..index..[[ test failed]])
-								failedTests = failedTests + 1
-							end
-						end
-					end
-				end
-			end)
-
-			if not requireSuccess and requireMessage then
-				logger.error([[[Testing] All tests on "]]..filename..[[" failed.]])
-			else
-				local loggerFunction = failedTests == 0 and logger.log or logger.error
-				loggerFunction([[[Testing] ]]..filename..[[ Total:]]..testNumber..[[ Failed:]]..failedTests)
-			end
-		end
-		
-	end
-	logger.line()
-end
-
 return library

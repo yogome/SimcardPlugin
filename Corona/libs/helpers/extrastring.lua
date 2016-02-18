@@ -71,10 +71,23 @@ function extraString.addCommas(inputNumber)
 		end
 		return outputStr
 	else
-		logger.error("[Extra String] inputNumber must be a number")
+		logger.error("inputNumber must be a number")
 	end
 	return ""
 end
+
+function extraString.fromhex(str) -- TODO remove closures
+	return (str:gsub("..", function (cc)
+		return string.char(tonumber(cc, 16))
+	end))
+end
+
+function extraString.tohex(str)
+	return (str:gsub(".", function (c)
+		return string.format("%02X", string.byte(c))
+	end))
+end
+
 function extraString.encode(sInput)
 	initDictionary(true)
 	

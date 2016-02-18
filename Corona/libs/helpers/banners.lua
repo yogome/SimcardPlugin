@@ -17,21 +17,20 @@ local SOUND_IDS = {
 }
 
 local SOUNDLIST = {
-	[1] = {id = SOUND_IDS.ready.en, path = PATH_SOUNDS.."ready_en.mp3"},
-	[2] = {id = SOUND_IDS.ready.es, path = PATH_SOUNDS.."ready_es.mp3"},
-	[3] = {id = SOUND_IDS.ready.pt, path = PATH_SOUNDS.."ready_pt.mp3"},
-	[4] = {id = SOUND_IDS.go.en, path = PATH_SOUNDS.."go_en.mp3"},
-	[5] = {id = SOUND_IDS.go.es, path = PATH_SOUNDS.."go_es.mp3"},
-	[6] = {id = SOUND_IDS.go.pt, path = PATH_SOUNDS.."go_pt.mp3"},
+	[SOUND_IDS.ready.en] = PATH_SOUNDS.."ready_en.mp3",
+	[SOUND_IDS.ready.es] = PATH_SOUNDS.."ready_es.mp3",
+	[SOUND_IDS.ready.pt] = PATH_SOUNDS.."ready_pt.mp3",
+	[SOUND_IDS.go.en] = PATH_SOUNDS.."go_en.mp3",
+	[SOUND_IDS.go.es] = PATH_SOUNDS.."go_es.mp3",
+	[SOUND_IDS.go.pt] = PATH_SOUNDS.."go_pt.mp3",
 }
-local TAG_TRANSITION_READYGO = "readyGoTransitions"
 ----------------------------------------------- Functions
 local function initialize()
 	if not initialized then
 		initialized = true
 		
-		logger.log("[Banners] Initializing.")
-		sound.loadSounds(SOUNDLIST)
+		logger.log("Initializing.")
+		sound.loadTable(SOUNDLIST)
 	end
 end
 
@@ -40,7 +39,6 @@ function banners.newReadyGo(options)
 	local readyGo = display.newGroup()
 	readyGo.x = display.contentCenterX
 	readyGo.y = display.contentCenterY
-	readyGo.tag = TAG_TRANSITION_READYGO
 	
 	options = options or {}
 	local language = options.language or "en"
@@ -79,23 +77,29 @@ function banners.newReadyGo(options)
 	
 	local partTime = totalTime / 7
 
-	transition.to(ready, {tag = TAG_TRANSITION_READYGO, delay = delay, time = partTime, alpha = 1, xScale = readyScale1, yScale = readyScale1,  transition=easing.outQuad, onStart = function()
+	transition.to(ready, {delay = delay, time = partTime, alpha = 1, xScale = readyScale1, yScale = readyScale1,  transition=easing.outQuad, onStart = function()
 		sound.play(readySound)
 	end})
-	transition.to(ready, {tag = TAG_TRANSITION_READYGO, delay = delay + partTime, time = partTime * 2, alpha = 1, xScale = readyScale2, yScale = readyScale2,  transition=easing.outQuad})
-	transition.to(ready, {tag = TAG_TRANSITION_READYGO, delay = delay + partTime * 3, time = partTime, alpha = 0, xScale = readyScale3, yScale = readyScale3,  transition=easing.outQuad})
+	transition.to(ready, {delay = delay + partTime, time = partTime * 2, alpha = 1, xScale = readyScale2, yScale = readyScale2,  transition=easing.outQuad})
+	transition.to(ready, {delay = delay + partTime * 3, time = partTime, alpha = 0, xScale = readyScale3, yScale = readyScale3,  transition=easing.outQuad})
 
-	transition.to(go, {tag = TAG_TRANSITION_READYGO, delay = delay + partTime * 3, time = partTime, alpha = 1, xScale = goScale1, yScale = goScale1,  transition=easing.outQuad, onComplete = function()
+	transition.to(go, {delay = delay + partTime * 3, time = partTime, alpha = 1, xScale = goScale1, yScale = goScale1,  transition=easing.outQuad, onComplete = function()
 		sound.play(goSound)
 	end})
-	transition.to(go, {tag = TAG_TRANSITION_READYGO, delay = delay + partTime * 4, time = partTime * 2, alpha = 1, xScale = goScale2, yScale = goScale2,  transition=easing.outQuad})
-	transition.to(go, {tag = TAG_TRANSITION_READYGO, delay = delay + partTime * 6, time = partTime, alpha = 0, xScale = goScale3, yScale = goScale3,  transition=easing.outQuad, onComplete = function()
+	transition.to(go, {delay = delay + partTime * 4, time = partTime * 2, alpha = 1, xScale = goScale2, yScale = goScale2,  transition=easing.outQuad})
+	transition.to(go, {delay = delay + partTime * 6, time = partTime, alpha = 0, xScale = goScale3, yScale = goScale3,  transition=easing.outQuad, onComplete = function()
 		display.remove(readyGo)
 		readyGo = nil
 		if onComplete and "function" == type(onComplete) then
 			onComplete()
 		end
 	end})
+	
+	readyGo:addEventListener("finalize", function(event)
+		if event.target then
+			transition.cancel(event.target)
+		end
+	end)
 	
 	return readyGo
 end

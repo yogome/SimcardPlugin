@@ -263,7 +263,7 @@ function tutorials.start(options)
 	
 	parentScene:addEventListener("finalize", function()
 		pcall(function()
-			logger.error("[Tutorials] Canceling tutorial due to parent scene elimination")
+			logger.error("Canceling tutorial due to parent scene elimination")
 			tutorials.cancel(tutorial)
 		end)
 	end)

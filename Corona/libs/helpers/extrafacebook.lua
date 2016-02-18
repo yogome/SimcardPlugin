@@ -66,7 +66,7 @@ local function facebookListener(event)
 			checkUserData()
 		elseif event.type == "session" then
 			if event.phase == "login" then
-				logger.log("[Facebook] Login was successful")
+				logger.log("Login was successful")
 				
 				database.config(DBKEY_TOKEN, event.token)
 				database.config(DBKEY_TOKEN_EXPIRATION, event.expiration)
@@ -123,16 +123,18 @@ local function initialize()
 	end)
 	
 	if not success then
-		logger.error([[[Facebook] Could not load facebook plugin. make sure it is specified on build.settings]])
+		logger.error([[Could not load plugin. make sure it is specified on build.settings]])
 		facebook = {}
 		setmetatable(facebook, {
 			__index = function()
 				return function()
+					logger.error([[Facebook plugin not installed. Add in build.settings!]])
 					return true
 				end
 			end,
 			__newindex = function()
 				return function()
+					logger.error([[Facebook plugin not installed. Add in build.settings!]])
 					return true
 				end
 			end
@@ -142,7 +144,7 @@ end
 ----------------------------------------------- Module functions
 function extraFacebook.login(onSuccess)
 	if fbAppID and initialized then
-		logger.log("[Facebook] Logging in")
+		logger.log("Logging in")
 		facebook.login(fbAppID, facebookListener, {"email"})
 
 		onLoginSuccess = onSuccess or function()
@@ -171,7 +173,7 @@ function extraFacebook.initialize(appID, login)
 	if not initialized then
 		initialized = true
 		fbAppID = appID
-		logger.log("[Facebook] Initializing, setting appID to "..appID)
+		logger.log("Initializing, setting appID to "..appID)
 		environment = system.getInfo( "environment" )
 		
 		canPublishCheck = false
@@ -265,7 +267,7 @@ function extraFacebook.postMessage(postOptions, onComplete)
 			end
 		end
 	else
-		logger.error("[Facebook] You must call initialize with a valid appID first!")
+		logger.error("You must call initialize with a valid appID first!")
 	end
 end
 

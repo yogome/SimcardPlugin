@@ -19,6 +19,9 @@ local utils = require( folder.."utils" )
 local SkeletonJson = {}
 ----------------------------------------------- Caches
 local mathMax = math.max 
+local tonumber = tonumber
+local pairs = pairs
+local ipairs = ipairs
 ----------------------------------------------- Module functions
 function SkeletonJson.new(attachmentLoader)
 	if not attachmentLoader then attachmentLoader = AttachmentLoader.new() end
@@ -117,7 +120,8 @@ function SkeletonJson.new(attachmentLoader)
 
 		-- Slots.
 		if root["slots"] then
-			for i,slotMap in ipairs(root["slots"]) do
+			for i = 1, #root.slots do
+				local slotMap = root.slots[i]
 				local slotName = slotMap["name"]
 				local boneName = slotMap["bone"]
 				local boneData = skeletonData:findBone(boneName)
@@ -170,7 +174,7 @@ function SkeletonJson.new(attachmentLoader)
 				eventData.intValue = eventMap["int"] or 0
 				eventData.floatValue = eventMap["float"] or 0
 				eventData.stringValue = eventMap["string"]
-				table.insert(skeletonData.events, eventData)
+				skeletonData.events[#skeletonData.events + 1] = eventData
 			end
 		end
 
@@ -223,7 +227,7 @@ function SkeletonJson.new(attachmentLoader)
 
 		elseif type == AttachmentType.mesh then
 			local mesh = attachmentLoader:newMeshAttachment(skin, name, path)
-			if not mesh then return null end
+			if not mesh then return nil end
 			mesh.path = path 
 			mesh.vertices = getArray(map, "vertices", scale)
 			mesh.triangles = getArray(map, "triangles", 1)

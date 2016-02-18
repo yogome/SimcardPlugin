@@ -17,6 +17,13 @@ local function initialize()
 		initialized = true
 		listeners = {}
 		
+		Runtime:addEventListener("system", function(event)
+			if event.type and "applicationOpen" == event.type and event.url then
+				logger.log("Received url on applicationOpen.")
+				deeplinking.check(event.url)
+			end
+		end)
+		
 		deeplinking.addEventListener("databaseConfig", function(event)
 			if event and event.data then
 				local configurationModel = database.getConfigurationModel()
@@ -39,7 +46,7 @@ function deeplinking.check(url)
 		local splitUrl = extrastring.split(url, "://")
 		if splitUrl and #splitUrl == 2 then -- [1] = deep link name, [2] = custom deep link data
 			if splitUrl[2] and "string" == type(splitUrl[2]) and string.len(splitUrl[2]) > 0 then
-				logger.log("[Deeplinking] Received custom data.")
+				logger.log("Received custom data.")
 				local customData = extrajson.decodeFixed(mime.unb64(splitUrl[2]))
 				
 				for index, value in pairs(customData) do

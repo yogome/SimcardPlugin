@@ -1,6 +1,6 @@
-/Users/jonatan/Desktop/App/android/bin/App-release-unsigned.apk : \
-/Users/jonatan/Desktop/App/android/bin/App.ap_ \
-/Users/jonatan/Desktop/App/android/bin/classes.dex \
+/Users/jonatan/yogome/SimcardPlugin/android/bin/App-release-unsigned.apk : \
+/Users/jonatan/yogome/SimcardPlugin/android/bin/App.ap_ \
+/Users/jonatan/yogome/SimcardPlugin/android/bin/classes.dex \
 /Applications/CoronaEnterprise/Corona/android/lib/Corona/bin/classes.jar \
 /Applications/CoronaEnterprise/Corona/android/lib/Corona/libs/JNLua.jar \
 /Applications/CoronaEnterprise/Corona/android/lib/Corona/libs/network.jar \

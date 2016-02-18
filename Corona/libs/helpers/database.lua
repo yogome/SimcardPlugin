@@ -1,14 +1,14 @@
----------------------------------------------- Database
+---------------------------------------------- Database - A database model manager - (c) Basilio Germán
 local path = ...
 local folder = path:match("(.-)[^%.]+$")
-local logger = require( folder.."logger" )
-local extrafile = require( folder.."extrafile" )
-local sqlite = require( "sqlite3" )
-local crypto = require( "crypto" )
-local json = require( "json" )
-local mime = require( "mime" )
-local extrajson = require( folder.."extrajson" )
-local extratable = require( folder.."extratable" )
+local logger = require(folder.."logger")
+local extrafile = require(folder.."extrafile")
+local sqlite = require("sqlite3")
+local crypto = require("crypto")
+local json = require("json")
+local mime = require("mime")
+local extrajson = require(folder.."extrajson")
+local extratable = require(folder.."extratable")
 local database = {}
 ---------------------------------------------- Variables
 local initialized
@@ -19,17 +19,37 @@ local models
 
 local overrideChecksum
 local onDatabaseClose
+local databasePath
 ---------------------------------------------- Constants
 local FILENAME_DATABASE = "default.db"
 local NAME_CONFIGURATION_TABLE = "configuration"
 local KEY_TIMESTAMP_CREATION = "databaseCreationDate"
 ---------------------------------------------- Caches
 local mathRound = math.round 
+local mathRandom = math.random
+local unpack = unpack
+local type = type
+local tonumber = tonumber
+local tostring = tostring
+local pairs = pairs
+local assert = assert
+local osTime = os.time
+local osDate = os.date
+local stringSub = string.sub
+local stringByte = string.byte
+local stringChar = string.char
+local stringLen = string.len
+local rawset = rawset
+local rawget = rawget
 ---------------------------------------------- Functions
-function database.count(tableName)
-	local sql = "SELECT COUNT(*) AS total FROM "..tableName..";"
-	local count = database.getColumn("total", sql)
-	return tonumber(count)
+local function startDatabase()
+	databasePath = system.pathForFile( FILENAME_DATABASE, system.DocumentsDirectory)
+	databaseObject = sqlite.open(databasePath)
+	databaseObject:trace(function(udata, sql)
+		if debugDatabase then
+			logger.log(tostring(sql))
+		end
+	end, {})
 end
 
 local function generateChecksum()
@@ -67,7 +87,7 @@ local function onSystemEvent( event )
 				onDatabaseClose()
 			end
 			database.calculateChecksum()
-			logger.log("[Database] Closing database.")
+			logger.log("Closing database.")
 			databaseObject:close()
 			databaseObject = nil
 		end
@@ -77,21 +97,24 @@ end
 local function createTable(tableName)
 	local statement = databaseObject:prepare([[SELECT COUNT(*) FROM sqlite_master WHERE type = "table" AND name = "]]..tableName..[["]])
 	local step = statement:step()
-	assert(step == sqlite.ROW, "[Database] Failed to detect if "..tableName.." already exists")
+	assert(step == sqlite.ROW, "Failed to detect if "..tableName.." already exists")
 
 	local value = statement:get_value(0)
 	if value == 0 then
-		logger.log( "[Database] Creating "..tableName.." table." )
+		logger.log( "Creating "..tableName.." table." )
 		local tableCreate = [[CREATE TABLE IF NOT EXISTS ]]..tableName..[[ (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			data TEXT);]]
-		local exec = databaseObject:exec(tableCreate)
-		assert(exec == sqlite.OK, "[Database] There was an error creating "..tableName)
+		local result = databaseObject:exec(tableCreate)
+		assert(result == sqlite.OK, "There was an error creating "..tableName)
 		return true
 	elseif value == 1 then
-		logger.log( "[Database] "..tableName.." table is present." )
+		logger.log(tableName.." table is present." )
 		return false
 	end
+	
+	local result = statement:finalize()
+	assert(sqlite.OK == result, "statement did not finalize correctly "..result)
 end
 
 local function getBlameData()
@@ -106,7 +129,67 @@ local function getBlameData()
 	end
 	return unpack({"Attempt","","",})
 end
+
+local function verifyCols(tableName, args)
+	local cols = {}
+	for colName, value in pairs(args) do
+		cols[#cols + 1] = colName
+	end
+	
+	local sql = "PRAGMA table_info("..tostring(tableName)..");"
+	local existingCols = {}
+	for row in databaseObject:nrows(sql) do
+		existingCols[#existingCols + 1] = row.name
+	end
+	
+	local found = 0
+	for indexA = 1, #cols do
+		for indexB = 1, #existingCols do
+			if cols[indexA] == existingCols[indexB] then
+				found = found + 1
+			end
+		end
+	end
+	
+	return unpack({found == #cols, existingCols})
+end
+
+local function convertLegacyTable(tableName, currentCols)
+	tableName = tostring(tableName)
+	if extratable.containsValue(currentCols, "key") and extratable.containsValue(currentCols, "value") then
+		local convertedData = {}
+		local existingData = database.getRows(tableName)
+		for index = 1, #existingData do
+			convertedData[existingData[index].key] = existingData[index].value
+		end
+		convertedData.id = 1
+		
+		local tempName = "old"..tableName..tostring(mathRandom(1, 100000000))
+		database.exec("ALTER TABLE '"..tableName.."' RENAME TO '"..tempName.."';")
+		databaseObject:close()
+		startDatabase()
+		local result = databaseObject:exec("DROP TABLE '"..tempName.."';")
+		if result == sqlite.OK then
+			logger.log("Deleted legacy table")
+		end
+				
+		createTable(tableName)
+		
+		local sql = [[INSERT INTO ]]..tableName..[[ (id, data) VALUES (:id, :data)]]
+		database.exec(sql, {id = 1, data = json.encode(convertedData)})
+		
+		logger.log([[Converted legacy table "]]..tableName..[["]])
+	else
+		logger.warn([[Table "]]..tostring(tableName)..[[" is not a legacy table]])
+	end
+end
 ---------------------------------------------- Module Functions
+function database.count(tableName)
+	local sql = "SELECT COUNT(*) AS total FROM "..tableName..";"
+	local count = database.getColumn("total", sql)
+	return tonumber(count)
+end
+
 function database.setOnDatabaseClose(onCloseFunction)
 	onDatabaseClose = onCloseFunction
 end
@@ -129,56 +212,55 @@ end
 
 function database.exec(sql, args)
 	database.initialize()
-	local result
 	if not args then
-		result = databaseObject:exec(sql)
-		assert(result == sqlite3.OK, "[Database] Failed("..result.."): "..sql)
+		local result = databaseObject:exec(sql)
+		if not result == sqlite.OK then
+			logger.error("Exec error e"..tostring(result))
+			return false
+		end
 	else
-		local stmt = databaseObject:prepare(sql)
+		local statement = databaseObject:prepare(sql)
 		assert(type(args) == "table", "expected parameter args to be a table")
 
-		stmt:bind_names(args)
-		result = stmt:step()
-		assert(result == sqlite3.DONE, "[Database] failed to execute SQL "..result)
+		statement:bind_names(args)
+		local stepResult = statement:step()
+		local finalizeResult = statement:finalize()
+		if not (stepResult == sqlite.DONE and finalizeResult == sqlite.OK) then
+			logger.error("Exec error s"..tostring(stepResult).." f"..tostring(finalizeResult))
+			return false
+		end
 	end
+	return true
 end
 
-function database.initialize()
+function database.initialize() -- TODO check if db has write permission
 	if not initialized then
 		initialized = true
 		
 		models = models or {}
 		if not extrafile.exists(FILENAME_DATABASE, system.DocumentsDirectory) then
 			overrideChecksum = true
-			logger.log("[Database] Creating database.")
+			logger.log("Creating database.")
 		else
-			logger.log("[Database] Opening database.")
+			logger.log("Opening database.")
 		end
 		
-		local databasePath = system.pathForFile( FILENAME_DATABASE, system.DocumentsDirectory)
-		databaseObject = sqlite3.open(databasePath)
-
-		Runtime:addEventListener( "system", onSystemEvent )
-		
-		databaseObject:trace(function(udata, sql)
-			if debugDatabase then
-				logger.log("[Database] "..sql)
-			end
-		end, {})
+		startDatabase()
+		Runtime:addEventListener("system", onSystemEvent)
 		
 		configurationModel = database.newModel(NAME_CONFIGURATION_TABLE, nil, nil, true)
 		configurationObject = configurationModel.get(1, false)
 		if not configurationObject then
 			configurationObject = configurationModel.new()
 			configurationObject.id = 1
-			configurationObject[KEY_TIMESTAMP_CREATION] = os.time(os.date("*t"))
+			configurationObject[KEY_TIMESTAMP_CREATION] = osTime(osDate("*t"))
 			configurationModel.save(configurationObject)
 		end
 	end
 end
 
 function database.getDatabaseAgeDays()
-	local timeToday = os.time(os.date("*t"))
+	local timeToday = osTime(osDate("*t"))
 	local creationDate = tonumber(database.config(KEY_TIMESTAMP_CREATION)) or 0
 	local ageSeconds = timeToday - creationDate
 	local ageMinutes = ageSeconds / 60
@@ -186,6 +268,14 @@ function database.getDatabaseAgeDays()
 	local ageDays = ageHours / 24
 	
 	return mathRound(ageDays)
+end
+
+function database.getDatabaseAgeSeconds()
+	local timeToday = osTime(osDate("*t"))
+	local creationDate = tonumber(database.config(KEY_TIMESTAMP_CREATION)) or 0
+	local ageSeconds = timeToday - creationDate
+	
+	return mathRound(ageSeconds)
 end
 
 function database.getColumns(column, sql)
@@ -218,7 +308,12 @@ function database.getRow(tableName, args)
 				where = where..key.." = "..value.." "
 				where = where..","
 			end
-			where = string.sub(where,1,-2)
+			where = stringSub(where,1,-2)
+		end
+		
+		local hasCols, currentCols = verifyCols(tableName, args)
+		if not hasCols then
+			convertLegacyTable(tableName, currentCols)
 		end
 		
 		local sql = "SELECT * FROM "..tableName..where.." ORDER BY rowid"
@@ -226,7 +321,7 @@ function database.getRow(tableName, args)
 			result = row
 		end
 	else
-		logger.log( "[Database] tableName must not be nil and be a string." )
+		logger.log( "tableName must not be nil and be a string." )
 	end
 	return result
 end
@@ -241,7 +336,7 @@ function database.getRows(tableName, args)
 				where = where..key.." = "..value.." "
 				where = where..","
 			end
-			where = string.sub(where,1,-2)
+			where = stringSub(where,1,-2)
 		end
 		
 		local sql = "SELECT * FROM "..tableName..where.." ORDER BY rowid"
@@ -249,7 +344,7 @@ function database.getRows(tableName, args)
 			result[#result + 1] = row
 		end
 	else
-		logger.log( "[Database] tableName must not be nil and be a string." )
+		logger.log( "tableName must not be nil and be a string." )
 	end
 	return result
 end
@@ -262,7 +357,7 @@ function database.getTable(tableName)
 			result[#result + 1] = row
 		end
 	else
-		logger.log( "[Database] tableName must not be nil and be a string." )
+		logger.log( "tableName must not be nil and be a string." )
 	end
 	return result
 end
@@ -280,7 +375,7 @@ function database.delete()
 	initialized = false
 	local deleted, reason = os.remove( system.pathForFile( FILENAME_DATABASE, system.DocumentsDirectory) )
 	if deleted then
-		logger.log("[Database] Deleted database file.")
+		logger.log("Deleted database file.")
 		
 		database.initialize()
 		
@@ -288,19 +383,19 @@ function database.delete()
 			models[index].recreate()
 		end
 	else
-		logger.error("[Database] Datbase file could not be deleted.")
+		logger.error("Datbase file could not be deleted.")
 	end
 end
 
 function database.decodeConfig(encodedData)
-	local trimmedEncodedData = string.sub(encodedData, 1, -4)
-	local trimmedEncodedDataLenght = string.len(trimmedEncodedData)
-	local magicNumber = tonumber(string.sub(encodedData, -3, -3)) - 2
+	local trimmedEncodedData = stringSub(encodedData, 1, -4)
+	local trimmedEncodedDataLenght = stringLen(trimmedEncodedData)
+	local magicNumber = tonumber(stringSub(encodedData, -3, -3)) - 2
 	local decodedB64 = ""
 	for index = 1, trimmedEncodedDataLenght do
-		local character = string.sub(trimmedEncodedData, index, index)
+		local character = stringSub(trimmedEncodedData, index, index)
 		local convertOffset = (index % magicNumber == 0 and 1 or -1)
-		character = string.char(string.byte(character) - convertOffset)
+		character = stringChar(stringByte(character) - convertOffset)
 		decodedB64 = decodedB64..character
 	end
 	
@@ -313,16 +408,16 @@ function database.dumpConfig()
 	if configurationObject then
 		local jsonConfiguration = json.encode(configurationObject)
 		local encodedConfiguration = mime.b64(jsonConfiguration)
-		local encodedLenght = string.len(encodedConfiguration)
+		local encodedLenght = stringLen(encodedConfiguration)
 		local newEncoded = ""
-		local randomEncode = math.random(2,5)
+		local randomEncode = mathRandom(2,5)
 		for index = 1, encodedLenght do
-			newEncoded = newEncoded..string.char(string.byte(encodedConfiguration, index, index) + (index % randomEncode == 0 and 1 or -1))
+			newEncoded = newEncoded..stringChar(stringByte(encodedConfiguration, index, index) + (index % randomEncode == 0 and 1 or -1))
 		end
 		newEncoded = newEncoded..tostring(randomEncode + 2).."=="
 		return newEncoded
 	else
-		logger.error("[Database] Configuration object is not available")
+		logger.error("Configuration object is not available")
 	end
 end
 
@@ -367,12 +462,12 @@ function database.newModel(modelName, singularName, debugFields, allowAllKeys)
 				local modelID = rawget(tab, "id")
 				if rawget(tab, key) == nil and defaultObject and defaultObject[key] ~= nil then
 					if debugFields then
-						logger.error([[[Database] key "]]..tostring(key)..[[" from object ]]..(modelID and tostring(modelID) or "with no ID")..[[ from "]]..modelName..[[" was nil, returned default value.]])
+						logger.error([[key "]]..tostring(key)..[[" from object ]]..(modelID and tostring(modelID) or "with no ID")..[[ from "]]..modelName..[[" was nil, returned default value.]])
 					end
 					rawset(tab, key, defaultObject[key])
 				elseif defaultObject[key] == nil and not extratable.containsValue(nilKeys, key) then
 					local blameMessage, relativePath, lineNumber = getBlameData()
-					logger.error([[[Database] ]]..blameMessage..[[ to get key "]]..tostring(key)..[[" from object ]]..(modelID and tostring(modelID) or "with no ID")..[[ from "]]..modelName..[[" which is not on the default model, at ]]..relativePath..[[:]]..lineNumber)
+					logger.error([[]]..blameMessage..[[ to get key "]]..tostring(key)..[[" from object ]]..(modelID and tostring(modelID) or "with no ID")..[[ from "]]..modelName..[[" which is not on the default model, at ]]..relativePath..[[:]]..lineNumber)
 				end
 				return rawget(tab, key)
 			end,
@@ -381,10 +476,10 @@ function database.newModel(modelName, singularName, debugFields, allowAllKeys)
 					local modelID = rawget(tab, "id")
 					local blameMessage, relativePath, lineNumber = getBlameData()
 					if value == nil then
-						logger.error("[Database] "..blameMessage..[[ to set nil value on key "]]..tostring(key)..[[" on object ]]..modelID..[[ from "]]..modelName..[[" at ]]..relativePath..[[:]]..lineNumber)
+						logger.error(tostring(blameMessage)..[[ to set nil value on key "]]..tostring(key)..[[" on object ]]..modelID..[[ from "]]..modelName..[[" at ]]..relativePath..[[:]]..lineNumber)
 						return
 					elseif not defaultObject[key] or not extratable.contains(nilKeys, key) then
-						logger.error([[[Database] ]]..blameMessage..[[ to set key "]]..tostring(key)..[[" which is not present in default "]]..modelName..[[" at ]]..relativePath..[[:]]..lineNumber)
+						logger.error([[]]..blameMessage..[[ to set key "]]..tostring(key)..[[" which is not present in default "]]..modelName..[[" at ]]..relativePath..[[:]]..lineNumber)
 						return
 					end
 				end
@@ -432,10 +527,10 @@ function database.newModel(modelName, singularName, debugFields, allowAllKeys)
 					setModelObjectMetatable(decodedObject, modelObjectMetatable)
 					return decodedObject
 				elseif warn then
-					logger.error("[Database] "..objectID.." is not a valid objectID for "..modelProperties.name)
+					logger.error(objectID.." is not a valid objectID for "..modelProperties.name)
 				end
 			elseif warn then
-				logger.error("[Database] "..tostring(type(objectID))..":"..tostring(objectID).." is not a valid objectID for "..modelProperties.name)
+				logger.error(tostring(type(objectID))..":"..tostring(objectID).." is not a valid objectID for "..modelProperties.name)
 			end
 		end
 		
@@ -445,13 +540,11 @@ function database.newModel(modelName, singularName, debugFields, allowAllKeys)
 				if not(currentObject and currentObject.id == currentID) then
 					local databaseObject = database.getRow(modelProperties.name, {id = currentID})
 					if databaseObject and databaseObject.id and databaseObject.data then
-						logger.log("[Database] fetching database object "..currentID.." from "..modelProperties.name)
+						logger.log("fetching database object "..currentID.." from "..modelProperties.name)
 						currentObject = extrajson.decodeFixed(databaseObject.data)
 					else
 						local count = model.getCount()
---						database.config("current"..modelProperties.singularName.."ID", false)
---						currentObject = nil
-						logger.log("[Database] fetching a new object from "..modelProperties.name)
+						logger.log("fetching a new object from "..modelProperties.name)
 						
 						local newModelObject = model.new(count == 0 and 1 or nil)
 						currentObject = newModelObject
@@ -463,7 +556,7 @@ function database.newModel(modelName, singularName, debugFields, allowAllKeys)
 					logger.log("[Players] fetching current object "..currentID.." from "..modelProperties.name.." from memory")
 				end
 			else
-				logger.log("[Database] fetching a new object from "..modelProperties.name)
+				logger.log("fetching a new object from "..modelProperties.name)
 				currentObject = model.new()
 				database.config("current"..modelProperties.singularName.."ID", currentObject.id)
 			end
@@ -504,14 +597,14 @@ function database.newModel(modelName, singularName, debugFields, allowAllKeys)
 					else
 						local sql = [[INSERT INTO ]]..modelProperties.name..[[ (id, data) VALUES (:id, :data)]]
 						database.exec(sql, {id = modelObject.id, data = jsonData})
-						logger.log("[Database] Created new object from "..modelProperties.name.." with ID "..modelObject.id)
+						logger.log("Created new object from "..modelProperties.name.." with ID "..modelObject.id)
 						model:dispatchEvent({name = "create", target = modelObject})
 					end
 				end
 				
 				if modelObject.id then
 					overwrite()
-					logger.log("[Database] Saved "..modelProperties.singularName.." "..tostring(modelObject.id))
+					logger.log("Saved "..modelProperties.singularName.." "..tostring(modelObject.id))
 					model:dispatchEvent({name = "update", target = modelObject})
 				else
 					local function persist()
@@ -528,11 +621,11 @@ function database.newModel(modelName, singularName, debugFields, allowAllKeys)
 					local jsonData = json.encode(modelObject)
 					overwrite()
 					
-					logger.log("[Database] Created new object from "..modelProperties.name.." with ID "..tostring(lastID))
+					logger.log("Created new object from "..modelProperties.name.." with ID "..tostring(lastID))
 					model:dispatchEvent({name = "create", target = modelObject})
 				end
 			else
-				logger.log("[Database] Could not save object. it must not be nil and be a table.")
+				logger.log("Could not save object. it must not be nil and be a table.")
 			end
 		end
 		
@@ -545,12 +638,12 @@ function database.newModel(modelName, singularName, debugFields, allowAllKeys)
 						database.config("current"..modelProperties.singularName.."ID", false)
 					end
 					database.exec([[DELETE from ]]..modelProperties.name..[[ WHERE id = :id]], modelObject)
-					logger.log("[Database] Deleted "..tostring(modelObject.id).." from ")
+					logger.log("Deleted "..tostring(modelObject.id).." from ")
 				else
-					logger.log("[Database] Could not delete object from "..modelProperties.name)
+					logger.log("Could not delete object from "..modelProperties.name)
 				end
 			else
-				logger.log("[Database] Could not delete object from "..modelProperties.name.." object must not be nil and be a table.")
+				logger.log("Could not delete object from "..modelProperties.name.." object must not be nil and be a table.")
 			end
 		end
 		
@@ -561,7 +654,7 @@ function database.newModel(modelName, singularName, debugFields, allowAllKeys)
 		function model.deleteAll()
 			currentObject = nil
 			database.exec([[DELETE from ]]..modelProperties.name)
-			logger.log("[Database] Deleted all "..modelProperties.name)
+			logger.log("Deleted all "..modelProperties.name)
 			model.deleted = true
 		end
 		
@@ -581,9 +674,9 @@ function database.newModel(modelName, singularName, debugFields, allowAllKeys)
 		end
 
 		if createTable(modelName) then
-			logger.log([[[Database] Created model "]]..modelProperties.name..[[" table]])
+			logger.log([[Created model "]]..modelProperties.name..[[" table]])
 		else
-			logger.log([[[Database] Model "]]..modelProperties.name..[[" table already exists]])
+			logger.log([[Model "]]..modelProperties.name..[[" table already exists]])
 		end
 		
 		models[#models + 1] = model

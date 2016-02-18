@@ -1,6 +1,7 @@
 ----------------------------------------------- Screen helper
 local screen = {}
 
+---------------------------------------------- Variables
 ----------------------------------------------- Caches
 local centerX = display.contentCenterX
 local centerY = display.contentCenterY
@@ -9,7 +10,6 @@ local screenOriginY = display.screenOriginY
 local viewableContentWidth = display.viewableContentWidth
 local viewableContentHeight = display.viewableContentHeight
 ----------------------------------------------- Functions
-
 ----------------------------------------------- Module functions
 function screen.leftEdge()
 	return screenOriginX
@@ -55,6 +55,25 @@ function screen.toCenter(displayObject)
 	displayObject.x, displayObject.y = centerX, centerY
 end
 
+function screen.getContentScale(displayObject)
+	local function getContentScale(object, pastX, pastY)
+		pastX = pastX * object.xScale or 1
+		pastY = pastY * object.yScale or 1
+		
+		if object.parent then
+			return getContentScale(object.parent, pastX, pastY)
+		else
+			return unpack({pastX, pastY})
+		end
+	end
+	
+	if displayObject and displayObject.xScale and displayObject.parent then
+		return getContentScale(displayObject, 1, 1)
+	elseif displayObject and displayObject.xScale then
+		return unpack({displayObject.xScale, displayObject.yScale})
+	end
+end
+
 function screen.getContentRotation(displayObject)
 	local function getContentRotation(object, pastRotation)
 		pastRotation = pastRotation + object.rotation or 0
@@ -72,6 +91,17 @@ function screen.getContentRotation(displayObject)
 	end
 end
 
+function screen.fillScreen(displayObject)
+	if displayObject and displayObject.width and displayObject.height then
+		screen.toCenter(displayObject)
+		
+		local scaleByHeight = displayObject.height >= displayObject.width
+		local scale = scaleByHeight and (display.viewableContentHeight / displayObject.height) or (display.viewableContentWidth / displayObject.width)
+		displayObject.xScale = scale
+		displayObject.yScale = scale
+	end
+end
+
 function screen.newColorGroup()
 	local group = display.newGroup()
 	function group:setFillColor(...)
@@ -83,6 +113,32 @@ function screen.newColorGroup()
 		end
 	end
 	return group
+end
+
+function screen.isVisible(displayObject)-- TODO check bounds
+	if displayObject and displayObject.localToContent and displayObject.contentBounds then
+		local bounds = displayObject.contentBounds 
+		
+		local xPos, yPos = displayObject:localToContent(0,0)
+		
+		if screenOriginX < xPos and xPos < screen.rightEdge() then
+			if screenOriginY < yPos and yPos < screen.bottomEdge() then
+				return true
+			end
+			return false
+		end
+	end
+	return false
+end
+
+function screen.transferObject(object, newParent)
+	if object and object.localToContent and newParent and newParent.insert and newParent.contentToLocal then
+		local contentX, contentY = object:localToContent(0, 0)
+		local localX, localY = newParent:contentToLocal(contentX, contentY)
+		
+		object.x, object.y = localX, localY
+		newParent:insert(object)
+	end
 end
 
 function screen.newGrid(rows, columns, spacing, width)
@@ -109,5 +165,12 @@ function screen.newGrid(rows, columns, spacing, width)
 	
 	return grid
 end
+----------------------------------------------- Execution
+screen.bottom = screen.bottomEdge()
+screen.top = screen.topEdge()
+screen.left = screen.leftEdge()
+screen.right = screen.rightEdge()
+screen.centerX = display.contentCenterX
+screen.centerY = display.contentCenterY
 
 return screen

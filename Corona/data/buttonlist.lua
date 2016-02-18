@@ -15,6 +15,9 @@ local buttonlist = {
 	retry = { width = 128, height = 128, defaultFile = "images/buttons/retry_01.png", overFile = "images/buttons/retry_02.png", onPress = playSound},
 	pause = { width = 128, height = 128, defaultFile = "images/buttons/pause_01.png", overFile = "images/buttons/pause_02.png", onPress = playSound},
 	yogodex = { width = 256, height = 256, defaultFile = "images/buttons/iconoyogodex_01.png", overFile = "images/buttons/iconoyogodex_02.png", onPress = playSound},
+	
+	music = { width = 128, height = 128, defaultFile = "images/buttons/bnt_music1.png", overFile = "images/buttons/bnt_music2.png", onPress = playSound},
+	sound = { width = 128, height = 128, defaultFile = "images/buttons/bnt_audio1.png", overFile = "images/buttons/bnt_audio2.png", onPress = playSound},
 }
 
 return buttonlist

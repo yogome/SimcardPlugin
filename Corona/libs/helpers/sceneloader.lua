@@ -18,7 +18,7 @@ function sceneLoader.loadScenes(sceneList, onSceneLoaded, sceneDelay)
 	local totalScenes = #sceneList
 	local percentagePerScene = 1 / totalScenes
 	if sceneList and type(sceneList) == "table" and totalScenes > 0 then
-		logger.log("[Sceneloader] Will attempt to load "..totalScenes.." scenes.")
+		logger.log("Will attempt to load "..totalScenes.." scenes.")
 		
 		display.setDefault( "preloadTextures", true )
 		for index = 1, totalScenes do
@@ -30,9 +30,9 @@ function sceneLoader.loadScenes(sceneList, onSceneLoaded, sceneDelay)
 					end)
 
 					if not result then
-						logger.error("[Sceneloader] There was an error loading "..sceneList[sceneIndex]..": "..errorMessage)
+						logger.error("There was an error loading "..sceneList[sceneIndex]..": "..errorMessage)
 					else
-						logger.log("[Sceneloader] Loaded "..sceneList[sceneIndex]..".")
+						logger.log("Loaded "..sceneList[sceneIndex]..".")
 					end
 					if onSceneLoaded then
 						local event = {
@@ -54,7 +54,7 @@ function sceneLoader.loadScenes(sceneList, onSceneLoaded, sceneDelay)
 			end
 		end
 	else
-		logger.log("[Sceneloader] sceneList must not be nil, be a table and not be empty.")
+		logger.log("sceneList must not be nil, be a table and not be empty.")
 	end
 end
 

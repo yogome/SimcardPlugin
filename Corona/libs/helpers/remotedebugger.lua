@@ -22,7 +22,7 @@ function remotedebugger.initialize(attemptConnection)
 			local lib = tcp:accept():receive("*a")
 			
 			if lib then 
-				logger.log("[Remote debugging] Library was received.") 
+				logger.log("Library was received.") 
 			end
 
 			local success, message = pcall(function()
@@ -30,15 +30,15 @@ function remotedebugger.initialize(attemptConnection)
 			end)
 
 			if not success and message then
-				logger.error("[Remote debugging] CiderDebugger might not be on your project.")
+				logger.error("CiderDebugger might not be on your project.")
 			elseif success and lib then
-				logger.log("[Remote debugging] Started.")
+				logger.log("Started.")
 			else
-				logger.log("[Remote debugging] Something went wrong.")
+				logger.error("Something went wrong.")
 			end
 			system.getInfo = originalSystemGetInfo
 		else
-			logger.log("[Remote debugging] Is only available on device builds")
+			logger.warn("Is only available on device builds")
 		end
 	end
 end

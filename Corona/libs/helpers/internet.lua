@@ -9,33 +9,45 @@ local internet = {}
 local isConnected
 local initialized
 local simulatedLatency
+local dispatcher
 --------------------------------------------- Constants
-local hostName = "www.apple.com"
+local HOSTNAME_1 = "www.apple.com"
+local HOSTNAME_2 = "www.google.com"
 local modeOverride = false
 local loopCountCheck = 10000
+local connectedTimer
+local DELAY_ENABLE = 500
 --------------------------------------------- Functions
 local function networkListener(event)
-	if event.isReachable then
-		isConnected = true
+	if connectedTimer then
+		timer.cancel(connectedTimer)
+	end
+	if event.isReachable and (event.isReachableViaWiFi or event.isReachableViaCellular) then
+		connectedTimer = timer.performWithDelay(DELAY_ENABLE, function()
+			isConnected = true
+			dispatcher:dispatchEvent({name = "onChange", isConnected = isConnected})
+		end)
 	else
 		isConnected = false
+		dispatcher:dispatchEvent({name = "onChange", isConnected = isConnected})
 	end
 end
 
 local function checkInternet()
-	network.request("http://"..hostName, "GET", function(event)
+	network.request("http://"..HOSTNAME_1, "GET", function(event)
 		if "ended" == event.phase then
 			if not event.isError then
 				isConnected = true
 			else
 				isConnected = false
 			end
+			dispatcher:dispatchEvent({name = "onChange", isConnected = isConnected})
 		end
 	end)
 end
 
 local function alternateStatusListener()
-	logger.log("[Internet] Using alternate status listener.")
+	logger.log("Using alternate status listener.")
 		
 	local loop = 0
 	Runtime:addEventListener("enterFrame", function()
@@ -50,7 +62,9 @@ end
 local function initialize()
 	if not initialized then
 		initialized = true
-		logger.log("[Internet] Initializing internet checker.")
+		logger.log("Initializing internet checker.")
+		
+		dispatcher = Runtime._super:new()
 		
 		local platformName = system.getInfo("platformName")
 		
@@ -58,8 +72,8 @@ local function initialize()
 			alternateStatusListener()
 		else
 			if network.canDetectNetworkStatusChanges then
-				logger.log("[Internet] Will use normal network listener.")
-				network.setStatusListener( hostName, networkListener )
+				logger.log("Will use normal network listener.")
+				network.setStatusListener( HOSTNAME_1, networkListener )
 			else
 				alternateStatusListener()
 			end
@@ -69,6 +83,10 @@ end
 --------------------------------------------- Module functions
 function internet.connectionStatus()
 	return network.getConnectionStatus()
+end
+
+function internet.addChangeListener(onChange)
+	dispatcher:addEventListener("onChange", onChange)
 end
 
 function internet.isConnected()

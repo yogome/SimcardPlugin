@@ -194,6 +194,11 @@ function colors.HSVToRGB(h,s,v)
 	return (c[1]+m),(c[2]+m),(c[3]+m)
 end
 
+function colors.random()
+	local function randomRange() return math.random(1,100) * 0.01 end
+	return {randomRange(), randomRange(), randomRange()}
+end
+
 setupMetatable()
 
 return colors

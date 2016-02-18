@@ -17,7 +17,7 @@ local vcw = display.viewableContentWidth
 local vch = display.viewableContentHeight
 ---------------------------------------------- Functions
 function Perspective.newCamera(numLayers)
-	logger.log("[Perspective] Creating view.")
+	logger.log("Creating view.")
 	numLayers = (type(numLayers)=="number" and numLayers) or 1
 
 	local isTracking = false
@@ -36,6 +36,9 @@ function Perspective.newCamera(numLayers)
 		trackRotation = false,
 		zoom = 1,
 		zoomMultiplier = 1,
+		defaultRotation = 0,
+		x = 0,
+		y = 0,
 	}
 	
 	for index = numLayers, 1, -1 do
@@ -99,8 +102,16 @@ function Perspective.newCamera(numLayers)
 		self.values.zoom = zoomLevel
 		self.values.zoomMultiplier = 1 / zoomLevel
 		local targetScale = (1 - zoomLevel) * 0.5
+		
 		transition.cancel(camera)
-		transition.to(camera, {xScale = zoomLevel, yScale = zoomLevel, x = display.viewableContentWidth * targetScale, y = display.viewableContentHeight * targetScale, time = zoomTime, delay = zoomDelay, transition = easing.inOutQuad})
+		if zoomDelay <= 0 and zoomTime <= 0 then
+			self.xScale = zoomLevel
+			self.yScale = zoomLevel
+			self.x = self.values.x + display.viewableContentWidth * targetScale
+			self.y = self.values.y + display.viewableContentHeight * targetScale
+		else
+			transition.to(self, {xScale = zoomLevel, yScale = zoomLevel, x = self.values.x + display.viewableContentWidth * targetScale, y = self.values.y + display.viewableContentHeight * targetScale, time = zoomTime, delay = zoomDelay, transition = easing.inOutQuad})
+		end
 	end
 	
 	function camera:getZoom()
@@ -119,7 +130,7 @@ function Perspective.newCamera(numLayers)
 			for index = 1, numLayers do
 						
 				local currentLayer = layer[index]
-				local targetRotation = camera.values.trackRotation and -camera.values.focus.rotation or 0
+				local targetRotation = camera.values.trackRotation and -camera.values.focus.rotation or camera.values.defaultRotation
 				
 				currentLayer.rotation = (currentLayer.rotation - (currentLayer.rotation - targetRotation) * camera.values.damping)
 
@@ -150,7 +161,7 @@ function Perspective.newCamera(numLayers)
 	
 	function camera:start()
 		if not isTracking then
-			isTracking=true
+			isTracking = true
 			Runtime:addEventListener("enterFrame", camera.trackFocus)
 		end
 	end
@@ -158,7 +169,7 @@ function Perspective.newCamera(numLayers)
 	function camera:stop()
 		if isTracking then
 			Runtime:removeEventListener("enterFrame", camera.trackFocus)
-			isTracking=false
+			isTracking = false
 		end
 	end
 	
@@ -174,7 +185,14 @@ function Perspective.newCamera(numLayers)
 			camera.values.x1, camera.values.x2, camera.values.y1, camera.values.y2 = x1, x2, y1, y2
 		end
 		
-		logger.log("[Perspective] Bounds set.")
+		logger.log("Bounds set.")
+	end
+	
+	function camera:setPosition(x, y)
+		self.values.x = x
+		self.values.y = y
+		self.x = x
+		self.y = y
 	end
 	
 	function camera:playSound(soundID, x, y) -- TODO could add zoom precision
@@ -191,24 +209,45 @@ function Perspective.newCamera(numLayers)
 		end
 	end
 	
-	function camera:toPoint(x, y)
+	function camera:toPoint(x, y, options)
 		local x = x or ccx
 		local y = y or ccy
 		
 		camera:stop()
 		local tempFocus = {x = x, y = y}
-		camera:setFocus(tempFocus)
+		camera:setFocus(tempFocus, options)
 		camera:start()
 		
 		return tempFocus
 	end
 	
-	function camera:setFocus(object, trackRotation)
+	function camera:removeFocus()
+		camera.values.focus = nil
+	end
+	
+	function camera:setFocus(object, options)
+		options = options or {}
+		local trackRotation = options.trackRotation
+		local soft = options.soft
+		
 		if object and object.x and object.y and camera.values.focus ~= object then
 			camera.values.focus = object
-			camera.values.targetX = object.x
-			camera.values.targetY = object.y
+			
+			if not soft then
+				camera.values.targetX = object.x
+				camera.values.targetY = object.y
+			end
+		else
+			camera.values.focus = nil
 		end
+		
+		camera.values.defaultRotation = 0 --Reset rotation
+		if not soft then
+			for index = 1, numLayers do
+				layer[index].rotation = 0
+			end
+		end
+		
 		camera.values.trackRotation = trackRotation
 	end
 	
@@ -228,21 +267,11 @@ function Perspective.newCamera(numLayers)
 		end
 	end
 	
-	function camera:destroy()
-		for indexA = 1, numLayers do
-			for indexB = 1, #layer[indexA] do
-				layer[indexA]:remove(layer[indexA][indexB])
-			end
-		end
-		
+	camera:addEventListener("finalize", function(event)
 		if isTracking then
 			Runtime:removeEventListener("enterFrame", camera.trackFocus)
 		end
-		display.remove(camera)
-		camera = nil
-		
-		logger.log("[Perspective] Deleted view.")
-	end
+	end)
 	
 	return camera
 end

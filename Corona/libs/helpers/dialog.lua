@@ -89,11 +89,136 @@ function dialog.newAlert(options)
 	end})
 end
 
+function dialog.newVariableWindow(options)
+	options = options or {}
+	
+	local variableWindow = display.newGroup()
+	
+	local touchCatcher = display.newRect(0, 0, display.viewableContentWidth + 2, display.viewableContentHeight + 2)
+	touchCatcher:setFillColor(0,0.5)
+	touchCatcher:addEventListener( "tap", function() return true end)
+	touchCatcher:addEventListener( "touch", function() return true end)
+	touchCatcher.isHitTestable = true
+	variableWindow:insert(touchCatcher)
+	
+	local totalHeight = PADDING * 4 + SIZE_TEXTBOX_PROPERTY.height * 3
+	local background = display.newRoundedRect(0, 0, 500, totalHeight, 15)
+	background:setFillColor(unpack(COLOR_BG))
+	variableWindow:insert(background)
+	
+	local title = display.newText("New variable", 0, -totalHeight * 0.5 + PADDING, native.systemFont, 32)
+	title.anchorY = 0
+	variableWindow:insert(title)
+	
+	local textboxes = {}
+	
+	local values = {}
+	for index = 1, 2 do
+		local texboxOptions = {
+			fontSize = 32,
+			width = SIZE_TEXTBOX_PROPERTY.width,
+			height = SIZE_TEXTBOX_PROPERTY.height,
+			font = native.systemFont,
+			inputType = "email",
+			useContainer = true,
+			color = { default = { 1, 1, 1 }, selected = { 1, 1, 1}, placeholder = {1, 1, 1} },
+			text = "",
+			onComplete = function(event)
+				values[index] = event.target.value
+				if textboxes[index + 1] then
+					robot.tap(textboxes[index + 1])
+				else
+					variableWindow:success()
+				end
+			end,
+			onChange = function(event)
+				values[index] = event.target.value
+			end,
+		}
+		
+		local propertyTextbox = textbox.new(texboxOptions)
+		propertyTextbox.anchorX = 0
+		propertyTextbox.x = -(SIZE_TEXTBOX_PROPERTY.width + PADDING * 0.5) + (index - 1) * (SIZE_TEXTBOX_PROPERTY.width + PADDING)
+		propertyTextbox.y = 0
+		variableWindow:insert(propertyTextbox)
+		
+		textboxes[index] = propertyTextbox
+	end
+	
+	local okOptions = {
+		label = "Ok",
+		shape = "rect",
+		fontSize = 26,
+		width = WIDTH_PROPERTY_BUTTONS,
+		height = SIZE_TEXTBOX_PROPERTY.height,
+		fillColor = { default = colors.lightGray, over = colors.lightGray },
+		labelColor = { default = colors.black, over = colors.black},
+		onRelease = function()
+			if options.onSuccess and "function" == type(options.onSuccess) then
+				options.onSuccess({key = values[1], value = values[2]})
+			end
+		end,
+	}
+	local buttonOK = widget.newButton(okOptions)
+	buttonOK.anchorY = 1
+	buttonOK.x = (PADDING + WIDTH_PROPERTY_BUTTONS) * 0.5
+	buttonOK.y = totalHeight * 0.5 - PADDING
+	variableWindow:insert(buttonOK)
+	
+	local cancelOptions = {
+		label = "Cancel",
+		shape = "rect",
+		fontSize = 26,
+		width = WIDTH_PROPERTY_BUTTONS,
+		height = SIZE_TEXTBOX_PROPERTY.height,
+		fillColor = { default = colors.lightGray, over = colors.lightGray },
+		labelColor = { default = colors.black, over = colors.black},
+		onRelease = function()
+			if options.onCancel and "function" == type(options.onCancel) then
+				options.onCancel()
+			end
+		end,
+	}
+	local buttonCancel = widget.newButton(cancelOptions)
+	buttonCancel.anchorY = 1
+	buttonCancel.x = -(PADDING + WIDTH_PROPERTY_BUTTONS) * 0.5
+	buttonCancel.y = totalHeight * 0.5 - PADDING
+	variableWindow:insert(buttonCancel)
+	
+	function variableWindow:cancel()
+		if options.onCancel and "function" == type(options.onCancel) then
+			options.onCancel()
+		end
+	end
+	
+	function variableWindow:success()
+		if options.onSuccess and "function" == type(options.onSuccess) then
+			options.onSuccess({key = values[1], value = values[2]})
+		end
+	end
+	
+	function variableWindow:isEditing()
+		for index = 1, #textboxes do
+			if textboxes[index].hasFocus then
+				return true
+			end
+		end
+		return false
+	end
+	
+	variableWindow:addEventListener("finalize", function()
+		textbox.removeFocus()
+	end)
+		
+	return variableWindow
+end
+
 function dialog.newPropertyWindow(options)
 	options = options or {}
 	local properties = options.properties or {}
 	local propertyOrder = options.propertyOrder
 	local width = options.width or WIDTH_PROPERTY_WINDOW
+	local showNewButton = options.showNewButton
 	
 	local propertyWindow = display.newGroup()
 	
@@ -179,6 +304,38 @@ function dialog.newPropertyWindow(options)
 		textboxes[currentProperty] = propertyTextbox
 	end
 	
+	if showNewButton then
+		local okOptions = {
+			label = "New",
+			shape = "rect",
+			fontSize = 26,
+			width = WIDTH_PROPERTY_BUTTONS,
+			height = SIZE_TEXTBOX_PROPERTY.height,
+			fillColor = { default = colors.lightGray, over = colors.lightGray },
+			labelColor = { default = colors.black, over = colors.black},
+			onRelease = function()
+				propertyWindow.variableWindow = dialog.newVariableWindow({
+					onSuccess = function(event)
+						newProperties[event.key] = event.value
+						display.remove(propertyWindow.variableWindow)
+						propertyWindow.variableWindow = nil
+						propertyWindow:success()
+					end,
+					onCancel = function(event)
+						display.remove(propertyWindow.variableWindow)
+						propertyWindow.variableWindow = nil
+					end
+				})
+				propertyWindow:insert(propertyWindow.variableWindow)
+			end,
+		}
+		local buttonNew = widget.newButton(okOptions)
+		buttonNew.anchorY = 1
+		buttonNew.x = (PADDING + WIDTH_PROPERTY_BUTTONS) * 0.5 + PADDING + WIDTH_PROPERTY_BUTTONS
+		buttonNew.y = totalHeight * 0.5 - PADDING
+		propertyWindow:insert(buttonNew)
+	end
+	
 	local okOptions = {
 		label = "Ok",
 		shape = "rect",
@@ -232,6 +389,10 @@ function dialog.newPropertyWindow(options)
 	end
 	
 	function propertyWindow:isEditing()
+		if self.variableWindow then
+			return true
+		end
+		
 		for index = 1, #textboxes do
 			if textboxes[index].hasFocus then
 				return true
@@ -240,12 +401,10 @@ function dialog.newPropertyWindow(options)
 		return false
 	end
 	
-	local oldRemoveSelf = propertyWindow.removeSelf
-	function propertyWindow.removeSelf(self, ...)
+	propertyWindow:addEventListener("finalize", function()
 		textbox.removeFocus()
-		oldRemoveSelf(self, ...)
-	end
-	
+	end)
+		
 	return propertyWindow
 end
 
@@ -381,9 +540,9 @@ function dialog.newSavePrompt(options)
 			if onSave and "function" == type(onSave) then
 				onSave({filename = textboxes[2].value, folder = textboxes[1].value})
 			end
-			logger.log("[Dialog] Saved data succesfully.")
+			logger.log("Saved data succesfully.")
 		else
-			logger.error("[Dialog] Data could not saved.")
+			logger.error("Data could not saved.")
 			if onFail and "function" == type(onFail) then
 				onFail({filename = textboxes[2].value, folder = textboxes[1].value})
 			end
@@ -604,9 +763,9 @@ function dialog.newLoadPrompt(options)
 				if onLoad and "function" == type(onLoad) then
 					onLoad({filename = selectedFile, filePath = filePath, data = data})
 				end
-				logger.log("[Dialog] Loaded data succesfully.")
+				logger.log("Loaded data succesfully.")
 			else
-				logger.error("[Dialog] Data was not saved")
+				logger.error("Data was not saved")
 				if onFail and "function" == type(onFail) then
 					onFail({})
 				end

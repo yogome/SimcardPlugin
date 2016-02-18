@@ -67,19 +67,19 @@ local function initialize(event)
 	queuedParams = nil
 	
 	if platformName == "Android" then
-		logger.log("[Video] Platform is Android, will add system event listener.")
+		logger.log("Platform is Android, will add system event listener.")
 		Runtime:addEventListener( "system", onSystemEvent )
 	end
 
 	if platformName == "Win" then
-		logger.log("[Video] Platform is Windows, video is not supported, skipped playing "..filename)
+		logger.log("Platform is Windows, video is not supported, skipped playing "..filename)
 		videoEnded()
 	else
 		if "external" == mode then
 			media.playVideo( filename, hasControls, videoListener )
 		elseif "internal" == mode then
 			if "device" == environment then
-				logger.log("[Video] Will now play "..filename.." in internal mode.")
+				logger.log("Will now play "..filename.." in internal mode.")
 				
 				Runtime:addEventListener( "tap", skipVideo)
 				videoObject = native.newVideo( display.contentCenterX, display.contentCenterY, display.viewableContentWidth + 2 , display.viewableContentHeight + 2)
@@ -87,7 +87,7 @@ local function initialize(event)
 				videoObject:addEventListener( "video", videoListener )
 				videoObject:play()
 			else
-				logger.error("[Video] Environment is simulator, internal video is not supported, skipped playing "..filename)
+				logger.error("Environment is simulator, internal video is not supported, skipped playing "..filename)
 				videoEnded()
 			end
 		end

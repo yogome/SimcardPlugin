@@ -165,7 +165,7 @@ function scrollmenu.new(options)
 				setItemColor(unpack(colors.white))
 			end
 		else
-			logger.log("[Scrollmenu] index out of bounds.")
+			logger.log("index out of bounds.")
 		end
 	end
 	

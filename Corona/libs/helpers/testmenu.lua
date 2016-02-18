@@ -208,7 +208,7 @@ function scene.addButton(textString, listener, rectColor, column, strokeColor)
 end
 
 function scene:create(event)
-	logger.log("[Test menu] initializing")
+	logger.log("initializing")
 	buttonList = {}
 
 	backButton = createBackButton()

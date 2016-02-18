@@ -39,9 +39,9 @@ local function addEntries(languageDictionary, fileName, language, family, overwr
 		fileEntries = json.decode(savedData)
 		ioClose(languageFile)
 	end) then
-		logger.log([[[Localization] File "]]..fileName..[[" was loaded to "]]..language..[[".]])
+		logger.log([[File "]]..fileName..[[" was loaded to "]]..language..[[".]])
 	else
-		logger.error([[[Localization] File "]]..fileName..[[" for "]]..language..[[" was not found.]])
+		logger.error([[File "]]..fileName..[[" for "]]..language..[[" was not found.]])
 	end
 	
 	local errors = 0
@@ -59,7 +59,7 @@ local function addEntries(languageDictionary, fileName, language, family, overwr
 	end
 	
 	if errors > 0 then
-		logger.error([[[Localization] There were ]]..tostring(errors)..[[ repeated strings.]])
+		logger.warn([[There were ]]..tostring(errors)..[[ repeated strings.]])
 	end
 end
 
@@ -99,7 +99,7 @@ function localization.setLanguage(language)
 	if dictionary[language] and not extratable.isEmpty(dictionary[language]) then
 		database.config("language", language)
 	else
-		logger.error([[[Localization] Language "]]..language..[[" contains no data.]])
+		logger.error([[Language "]]..language..[[" contains no data.]])
 	end
 end
 
@@ -111,7 +111,7 @@ function localization.format(stringIn)
 	if initialized then
 		return stringFormat(stringIn, localization.language)
 	else
-		logger.error("[Localization] You must initialize first.")
+		logger.error("You must initialize first.")
 	end
 	return ""
 end
@@ -147,15 +147,15 @@ end
 function localization.initialize(parameters)
 	parameters = parameters or {}
 	if not initialized then 
-		logger.log("[Localization] Initializing.")
+		logger.log("Initializing.")
 		initialized = true
 		customDictionary = {}
 		
 		local language = database.config( "language" )
 		if not language then
-			logger.log("[Localization] Autodetecting language.")
+			logger.log("Autodetecting language.")
 			local systemLanguage = system.getPreference( "locale", "language" )
-			logger.log("[Localization] Detected language "..systemLanguage)
+			logger.log("Detected language "..systemLanguage)
 			language = systemLanguage
 		end
 		
@@ -165,7 +165,7 @@ function localization.initialize(parameters)
 		localization.language = languageFileExists and language or "en"
 		localization.setLanguage(localization.language)
 	else
-		logger.error("[Localization] Is already initialized.")
+		logger.error("Is already initialized.")
 	end
 end
 
@@ -174,7 +174,7 @@ function localization.addString(language, stringID, stringValue)
 		customDictionary[language] = customDictionary[language] or {}
 		customDictionary[language][stringID] = stringValue
 	else
-		logger.error("[Localization] You must initialize first.")
+		logger.error("You must initialize first.")
 	end
 end
 
@@ -195,12 +195,12 @@ function localization.getString(stringID, language)
 					end
 					return STRING_MISSING
 				else
-					logger.error([[[Localization] ID:"]]..tostring(stringID)..[[" in language:"]]..language..[[" does not contain a string.]])
+					logger.error([[ID:"]]..tostring(stringID)..[[" in language:"]]..language..[[" does not contain a string.]])
 				end
 			end
 		end
 	else
-		logger.error("[Localization] Not initialized yet.")
+		logger.error("Not initialized yet.")
 		return STRING_NOT_INIT
 	end
 	return STRING_MISSING

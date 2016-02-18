@@ -68,9 +68,13 @@ local function updateParticles(event)
 			if particle.state == "stopped" then
 				removeActiveParticle(particle)
 				local maxDuration = (particle.particleLifespan + particle.particleLifespanVariance) * 1000
-				particle.deleteTimer = timer.performWithDelay(maxDuration + 100, function()
-					display.remove(particle)
+				particle.deleteTimer = timer.performWithDelay(maxDuration + 100, function(event)
+					if event.source.particle then
+						event.source.particle.deleteTimer = nil
+						display.remove(particle)
+					end
 				end)
+				particle.deleteTimer.particle = particle
 			end
 		end
 	end
@@ -96,7 +100,7 @@ local function fixBlendModes(emitterParams, options)
 	emitterParams.blendFuncDestination = options.blendFuncDestination or emitterParams.blendFuncDestination
 	
 	if emitterParams.blendFuncSource == GL_ONE and emitterParams.blendFuncDestination == GL_ONE_MINUS_SRC_ALPHA then
-		logger.error("[Particles] Source:GL_ONE and Destination:GL_ONE_MINUS_SRC_ALPHA particles are not represented correctly, using GL_SRC_ALPHA instead of GL_ONE")
+		logger.error("Source:GL_ONE and Destination:GL_ONE_MINUS_SRC_ALPHA particles are not represented correctly, using GL_SRC_ALPHA instead of GL_ONE")
 		emitterParams.blendFuncSource = GL_SRC_ALPHA
 	end
 end
@@ -177,6 +181,15 @@ local function addScale(emitter)
 		end
 	})
 end
+
+local function stopParticleGroup(self)
+	for index = 1, self.numChildren do
+		local particle = self[index]
+		if particle and particle.stop then
+			particle:stop()
+		end
+	end
+end
 ------------------------------------------- Module functions
 function particles.newGroup(fileNames, options) 
 	if fileNames and "table" == type(fileNames) and #fileNames > 0 then
@@ -203,6 +216,8 @@ function particles.newGroup(fileNames, options)
 				display.remove(particleGroup)
 			end)
 		end)
+		
+		particleGroup.stop = stopParticleGroup
 	
 		return particleGroup
 	end
@@ -233,7 +248,7 @@ function particles.new(filename, options)
 					path = system.pathForFile(guessFilename, system.ResourceDirectory )
 					
 					if not path then
-						logger.error([[[Particles] "]]..tostring(filename)..[[" is not a valid particle file or id]])
+						logger.error([["]]..tostring(filename)..[[" is not a valid particle file or id]])
 					else
 						filename = guessFilename
 					end
@@ -265,7 +280,7 @@ function particles.new(filename, options)
 
 				fixBlendModes(emitterParams, options)
 			end) then
-				logger.error([[[Particles] Failed to load particle file "]]..filename..[["]])
+				logger.error([[Failed to load particle file "]]..filename..[["]])
 			end
 		end
 
@@ -274,13 +289,17 @@ function particles.new(filename, options)
 			addScale(emitter)
 			overrideStateFunctions(emitter)
 
-			if emitterParams.duration > 0 then
+--			if emitterParams.duration > 0 then
 				activeParticles[#activeParticles + 1] = emitter
 				emitter:addEventListener("finalize", function(event)
 					local particle = event.target
 					removeActiveParticle(particle)
-
-					particle.deleteTimer = nil
+					
+					if particle.deleteTimer then
+						timer.cancel(particle.deleteTimer)
+						particle.deleteTimer = nil
+					end
+					
 					rawset(particle, "start", nil)
 					rawset(particle, "pause", nil)
 					rawset(particle, "scale", nil)
@@ -288,13 +307,15 @@ function particles.new(filename, options)
 					particle.oldPause = nil
 					particle.oldStop = nil
 				end)
-			end
+--			elseif emitterParams.duration == -1 then
+--				activeParticles[#activeParticles + 1] = emitter
+--			end
 			return emitter
 		else
 			return display.newGroup()
 		end
 	else
-		logger.error([[[Particles] "]]..tostring(filename)..[[" is not a string]])
+		logger.error([["]]..tostring(filename)..[[" is not a string]])
 	end
 end
 

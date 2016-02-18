@@ -212,7 +212,7 @@ function colorpicker.new(options)
 	
 	if not options.position then
 		options.position = "right"
-		logger.log([[[Colorpicker] Setting position to "left"]])
+		logger.log([[Setting position to "left"]])
 	elseif not("string" == type(options.position) and ("left" == options.position or "right" == options.position))then
 		error([[position must be a string, "left" or "right".]], 3)
 	end

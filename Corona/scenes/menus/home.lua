@@ -30,8 +30,10 @@ local function onReleasedPlay()
 	end
 end
 
-local function onReleasedSettings()
-	director.showOverlay( "scenes.menus.settings", { isModal = true, effect = "zoomInOutFade", time = 400 } )
+local function onReleasedSettings(event)
+	event.target:setEnabled(false)
+	director.showOverlay("scenes.menus.settings", {time = 400, effect = "fade", isModal = true})
+	--director.showOverlay( "scenes.menus.settings", { isModal = true, effect = "zoomInOutFade", time = 400 } )
 end
 
 local function cancelPlayTransition()
@@ -99,6 +101,11 @@ local function onGyroscope(event)
 	upHeroes.y = deltaYUp - gyroY * 5
 end
 ----------------------------------------------- Class functions 
+
+function scene.reloadLanguage()
+	buttonSettings:setEnabled(true)
+end
+
 function scene.enableButtons()
 	buttonPlay:setEnabled(true)
 	buttonSettings:setEnabled(true)
@@ -147,7 +154,7 @@ function scene:create(event)
 	buttonSettings.y = display.screenOriginY + display.viewableContentHeight - buttonSettings.height * 0.5 - MARGIN_BUTTON
 	sceneGroup:insert(buttonSettings)
 	
-	buttonSettings.isVisible = false
+	buttonSettings.isVisible = true
 end
 
 function scene:destroy()

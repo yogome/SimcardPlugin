@@ -34,7 +34,7 @@ function settings.new()
 				allSettings[key] = value
 			elseif key == "mode" and "string" == type(value) and not currentMode then
 				currentMode = value
-				logger.log("[Settings] Mode set to "..currentMode)
+				logger.log("Mode set to "..currentMode)
 			end
 		end,
 		__call  = function( tab, ... )

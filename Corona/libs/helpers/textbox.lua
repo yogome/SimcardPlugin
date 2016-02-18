@@ -12,7 +12,7 @@ local dummyField
 local currentField
 ------------------------------------------- Constants
 local cursorOffsetX = 5
-local YPOSITION_HIDDEN_DUMMYFIELD = display.screenOriginY - 1000
+local XPOSITION_HIDDEN_DUMMYFIELD = display.screenOriginX - 1000
 local PLATFORMNAME = system.getInfo("platformName")
 local IS_MAC = PLATFORMNAME == "Mac OS X"
 local KEYCODE_ENTER = IS_MAC and 36 or 13
@@ -49,7 +49,7 @@ local CHARACTERS_SHIFT = {
 	}
 }
 
-local ACCEPTED_CHARACTERS = "[A-Za-z0-9%.%!%@%#%$%%%^%&%*%(%)%_%+%-%=%s]"
+local ACCEPTED_CHARACTERS = "[A-Za-z0-9%.%!%@%#%$%%%^%&%*%(%)%_%+%-%=%s%/]"
 ------------------------------------------- Functions
 local function cancelCursorAnimations(cursor)
 	if cursor.timer then
@@ -160,7 +160,7 @@ local function initialize()
 		initialized = true
 		
 		if PLATFORMNAME == "iPhone OS" or PLATFORMNAME == "Android" then
-			dummyField = native.newTextField( display.contentCenterX, YPOSITION_HIDDEN_DUMMYFIELD, 200, 40 )
+			dummyField = native.newTextField(XPOSITION_HIDDEN_DUMMYFIELD, display.contentCenterY, 200, 40 )
 			dummyField.isVisible = true -- Needs to be visible on android to work
 			dummyField.isSecure = PLATFORMNAME ~= "Android" -- isSecure always true on iOS
 			dummyField:addEventListener( "userInput", function(event)
@@ -228,11 +228,14 @@ local function textboxTapped(event)
 		end
 		currentField = textbox
 		if dummyField then
+			local contentX, contentY = textbox:localToContent(0, 0)
+			dummyField.x, dummyField.y = XPOSITION_HIDDEN_DUMMYFIELD, contentY
+			
 			dummyField.isSecure = textbox.isPassword and PLATFORMNAME == "Android" -- Needs to differentiate on Android
 			dummyField.text = textbox.value
 			native.setKeyboardFocus(dummyField)
 			dummyField:setSelection(256,256)
-			logger.log("[Textbox] setKeyboardFocus called on textbox")
+			logger.log("setKeyboardFocus called on textbox")
 		end
 		
 		textbox.hasFocus = true

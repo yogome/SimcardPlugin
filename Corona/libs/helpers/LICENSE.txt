@@ -1,6 +1,6 @@
 Corona Helpers
 
-Copyright (c) 2014-2015, Basilio Germán
+Copyright (c) 2014-2016, Basilio Germán
 All rights reserved.
 
 You are granted a non-exclusive, non-sublicensable and

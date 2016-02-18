@@ -32,6 +32,7 @@ Utilities for Corona and LUA
 - library.*
 - localization.*
 - logger.*
+- [magnets.*](docs/magnets.md)
 - mixpanel.*
 - music.*
 - offlinequeue.*

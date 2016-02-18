@@ -32,13 +32,13 @@ function eventCounter.updateEventCount(eventCategory, eventName)
 			eventCounts[eventName] = 1
 		end
 
-		logger.log("[Event Counter] Category:"..eventCategory..", Name:"..eventName..", Times:"..eventCounts[eventName])
+		logger.log("Category:"..eventCategory..", Name:"..eventName..", Times:"..eventCounts[eventName])
 
 		allEvents[eventCategory] = eventCounts
 
 		return eventCounts[eventName]
 	else
-		logger.error("[Event Counter] You need to call initialize first! will always return 0.")
+		logger.error("You need to call initialize first! will always return 0.")
 	end
 	return 0
 end
@@ -46,9 +46,9 @@ end
 function eventCounter.saveCounts()
 	if initialized then
 		allEventsModel.save(allEvents)
-		logger.log("[Event Counter] Saved event count data.")
+		logger.log("Saved event count data.")
 	else
-		logger.error("[Event Counter] You need to call initialize first! Unable to save data.")
+		logger.error("You need to call initialize first! Unable to save data.")
 	end
 end
 

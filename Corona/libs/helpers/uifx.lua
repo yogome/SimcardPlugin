@@ -14,21 +14,51 @@ function uifx.applyBounceTransition(displayObject, options)
 	local smallScale = options.smallScale or 0.5
 	local largeScale = options.largeScale or 0.75
 	local intervalTime = options.intervalTime or 900
+	local iterations = options.iterations or -1
 	
 	transition.to(displayObject, {time = intervalTime, xScale = smallScale, yScale = smallScale, transition = easing.inOutSine})
 	transition.to(displayObject, {delay = intervalTime, time = intervalTime, xScale = largeScale, yScale = largeScale, transition = easing.inOutSine})
 	displayObject.bounceTimer = timer.performWithDelay(intervalTime * 2, function()
 		transition.to(displayObject, {time = intervalTime, xScale = smallScale, yScale = smallScale, transition = easing.inOutSine})
 		transition.to(displayObject, {delay = intervalTime, time = intervalTime, xScale = largeScale, yScale = largeScale, transition = easing.inOutSine})
-	end, -1)
+	end, iterations)
+end
+
+function uifx.sine(displayObject, options)
+	uifx.cancel(displayObject)
+	options = options or {}
+	
+	local index = options.index or "x"
+	local halfAmplitude = options.amplitude or 100
+
+	local initialValue = displayObject[index] - halfAmplitude
+	local finalValue = initialValue + halfAmplitude
+	
+	local intervalTime = options.intervalTime or 900
+	local iterations = options.iterations or -1
+	
+	transition.to(displayObject, {time = intervalTime, [index] = initialValue, transition = easing.inOutSine})
+	transition.to(displayObject, {delay = intervalTime, time = intervalTime, [index] = finalValue, transition = easing.inOutSine})
+	displayObject.bounceTimer = timer.performWithDelay(intervalTime * 2, function()
+		transition.to(displayObject, {time = intervalTime, [index] = initialValue, transition = easing.inOutSine})
+		transition.to(displayObject, {delay = intervalTime, time = intervalTime, [index] = finalValue, transition = easing.inOutSine})
+	end, iterations)
 end
 
 function uifx.cancelBounceTransition(displayObject)
-	if displayObject.bounceTimer then
+	if displayObject and displayObject.bounceTimer then
 		timer.cancel(displayObject.bounceTimer)
 		displayObject.bounceTimer = nil
+		transition.cancel(displayObject)
 	end
-	transition.cancel(displayObject)
+end
+
+function uifx.cancel(displayObject)
+	if displayObject and displayObject.bounceTimer then
+		timer.cancel(displayObject.bounceTimer)
+		displayObject.bounceTimer = nil
+		transition.cancel(displayObject)
+	end
 end
 
 function uifx.jump(displayObject, options)

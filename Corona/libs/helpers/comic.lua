@@ -106,7 +106,7 @@ local function loadPage(comic, pageData)
 	local vignettesImages = comic.vignettesImages
 	local vignettesImagesText = comic.vignettesImagesText
 	
-	local pageMusicTrack = pageData.musicTrack
+	local pageMusicID = pageData.musicID
 	
 	local function nextVignette()
 		if comic.comicTimer then 
@@ -177,8 +177,8 @@ local function loadPage(comic, pageData)
 	end
 	
 	comic.comicTimer = timer.performWithDelay(500, nextVignette)
-	if pageMusicTrack and "number" == type(pageMusicTrack) then
-		music.playTrack(pageMusicTrack, 400)
+	if pageMusicID then
+		music.play(pageMusicID, 400)
 	end
 end
 
@@ -197,8 +197,8 @@ local function onKeyEvent( event )
 			elseif event.keyName == "right" then
 				objectEditing.x = objectEditing.x + MOVE_PIXELS
 			elseif event.keyName == "p" and event.phase == "down" then
-				logger.log("[Comic] Offset x with contentCenterX " .. display.contentCenterX - objectEditing.x)
-				logger.log("[Comic] Offset y with contentCenterY " .. display.contentCenterY - objectEditing.y)
+				logger.log("Offset x with contentCenterX " .. display.contentCenterX - objectEditing.x)
+				logger.log("Offset y with contentCenterY " .. display.contentCenterY - objectEditing.y)
 			end
 		end
 	end
@@ -213,7 +213,7 @@ local function initialize()
 		if "simulator" == system.getInfo("environment") then
 			Runtime:addEventListener( "key", onKeyEvent )
 		end
-		sound.loadSounds(SOUNDS_COMIC)
+		sound.loadTable(SOUNDS_COMIC)
 	end
 end
 
