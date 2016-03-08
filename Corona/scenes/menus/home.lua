@@ -137,7 +137,9 @@ function scene:create(event)
 	deltaYUp = upHeroes.y
 	deltaXUp = upHeroes.x
 	
-	logo = display.newImage("images/home/logo_yappkids.png", true)
+	--logo = display.newImage("images/home/logo_yappkids.png", true)
+	--logo = display.newImage("images/home/logo_claro.png", true)
+	logo = display.newImage("images/home/logo_movistar.png", true)
 	logo.x = display.contentCenterX + OFFSET_LOGO.x
 	logo.y = display.contentCenterY + OFFSET_LOGO.y
 	sceneGroup:insert(logo)

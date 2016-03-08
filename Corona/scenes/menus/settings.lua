@@ -21,7 +21,7 @@ local BUTTON_LANGUAGE_SPACING = 136
 local DATA_LANGUAGE_BUTTONS = {
 	--[1] = {language = "en"},
 	[1] = {language = "es"},
-	[2] = {language = "pt"},
+	--[2] = {language = "pt"},
 } 
 local ALPHA_DISABLED = 0.5
 
